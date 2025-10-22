@@ -51,7 +51,7 @@ MOVE_NAMES = [
 ]
 
 MOVE_WEIGHTS = [
-    3, 1, 2, 4, 3, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 2, 2
+    3, 1, 2, 4, 3, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 2, 3
 ]
 
 MOVE_TO_NUM_QUBITS = {
@@ -196,6 +196,19 @@ def clear_terminal():
     else:
         os.system('clear')
 
+def verify_bitstring_of_length_n(bitstring: str, n: int):
+  if len(bitstring) != n:
+    return False
+  for i in range(len(bitstring)):
+    if not bitstring[i] in ['0', '1']:
+      return False
+  return True
+
+def get_grover_input(num_qubits: int):
+  cur = ""
+  while not verify_bitstring_of_length_n(cur, num_qubits):
+    cur = input(f"Enter a bitstring whose length is {num_qubits} that you want to amplify:")
+  return cur
 
 class Game:
   """Class that manages game loop and flow"""
@@ -254,6 +267,30 @@ class Game:
     statevector_data = self.get_statevector_data()
     plot_statevector_data(statevector_data)
 
+  def apply_grover_oracle_with_planted_sol(self, bitstring: str):
+    """
+    Applies a Grover oracle with the planted solution 
+    corresponding to bitstring
+    :param bitstring: The bitstring to perform an iteration of Grover for
+    """
+    # Apply X gates when you want that certain bit to be 0
+    for i in range(len(bitstring)):
+        index = len(bitstring) - 1 - i
+        if bitstring[index] == 0:
+            self.qc.x(self.q[index])
+    self.qc.mcp(np.pi,self.q[1:],self.q[0])
+    for i in range(len(bitstring)):
+        index = len(bitstring) - 1 - i
+        if bitstring[index] == 0:
+            self.qc.x(self.q[index])
+
+  def diffusion_operator(self):
+    self.qc.h(self.q)
+    self.qc.x(self.q)
+    self.qc.mcp(np.pi,self.q[1:],self.q[0])
+    self.qc.x(self.q)
+    self.qc.h(self.q)
+
   def apply_move(self, card_played: Card):
     """
     Applies the move on a card played by the player.
@@ -291,15 +328,16 @@ class Game:
       case 'SWAP':
         self.qc.swap(self.q[qubit_numbers[0]], self.q[qubit_numbers[1]])
       case 'DIFFUSION':
-        self.qc.h(self.q)
-        self.qc.x(self.q)
-        self.qc.mcp(np.pi,self.q[1:],self.q[0])
-        self.qc.x(self.q)
-        self.qc.h(self.q)
+        self.diffusion_operator()
       case 'RESET':
         self.qc.reset(self.q[qubit_numbers[0]])
         if random.random() < 0.5:
           self.qc.x(self.q[qubit_numbers[0]])
+      case 'GROVER':
+        bitstring = get_grover_input(self.num_qubits)
+        self.apply_grover_oracle_with_planted_sol(bitstring)
+        self.diffusion_operator()
+
 
   def measure_output_end_of_game(self, num_shots=1024):
     """Measures output at the end of the game using num_shots shots"""
