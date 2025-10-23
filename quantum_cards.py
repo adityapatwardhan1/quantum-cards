@@ -346,7 +346,7 @@ class Game:
       the_random_bitstring = generate_bitstring(self.num_qubits)
       if the_random_bitstring in self.bitstrings_player_one:
         continue
-      self.bitstrings_player_two.add(generate_bitstring(self.num_qubits))
+      self.bitstrings_player_two.add(the_random_bitstring)
 
     # Decide who goes first
     self.turn = random.choice([1, 2])
@@ -361,6 +361,7 @@ class Game:
     print("3. Each player has", self.num_cards_per_player, "cards that correspond to quantum gates.")
     print("   On your turn, select a card from your deck to play.")
     print("4. Once all cards have been played, the qubits are measured and the winner is determined.")
+    print("Note: Bitstrings in the game are in little-endian convention, so Qubit 0 is the rightmost qubit.")
     time.sleep(10)
     clear_terminal()
 
@@ -370,6 +371,8 @@ class Game:
     self.print_game_rules()
     print("Cards for player 1:", self.deck_player_one)
     print("Cards for player 2:", self.deck_player_two)
+    print("Bitstrings for player 1:", self.bitstrings_player_one)
+    print("Bitstrings for player 1:", self.bitstrings_player_two)
     print("Flipping coin to determine who goes first...")
     time.sleep(2)
     print(f"The first turn goes to: Player {self.turn}")
