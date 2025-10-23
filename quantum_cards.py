@@ -4,17 +4,10 @@ from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 from qiskit_aer import Aer
 from qiskit.quantum_info import Statevector, random_unitary
 import numpy as np
-from qiskit.visualization import plot_histogram, plot_state_qsphere, plot_bloch_multivector, plot_bloch_vector
-from qiskit.visualization import plot_state_city
 import random
 import time
 import os
 import matplotlib.pyplot as plt
-
-# TODO: 1. Fix glitchy input() problem, 2. Apply gates, 3. Show statevector
-# after each move it's nice to see for a beginner that is playing
-# Might be good to add another algorithm somewhere in here
-# input() problem may just be because clear_output and input() don't work well together
 
 """
 Quantum cards with measurement
@@ -31,8 +24,6 @@ help if they have a good chance of their bitstring being measured
 "flip over the average" you apply a gate besides CZ to do a "partial diffusion"
 Reverse card: Undo the other player's last move
 Reset a qubit to zero
-Bernstein-Vazirani (not a card): query to find out one of your player's target bitstrings
-may only use once and a randomly chosen card of yours will be surrendered
 
 5. Once there are no more cards, measure the outcome and assign points.
 
@@ -527,7 +518,6 @@ class Game:
       return 3
 
   def handle_player_turn(self):
-    # clear_output(wait=True)
     print(f"Turn: Player {self.turn}")
     current_player_deck = (self.deck_player_one if self.turn == 1 else self.deck_player_two)
     current_player_bistrings = (self.bitstrings_player_one if self.turn == 1
