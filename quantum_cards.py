@@ -320,7 +320,7 @@ class Game:
     if num_bitstrings_per_player == 0:
       num_bitstrings_per_player = (2**(num_qubits - 2))
 
-    # Initialize the quantum circuit with all qubits in the |+> state
+    # Initialize the quantum circuit using a random unitary
     self.num_qubits = num_qubits
     self.q: QuantumRegister = QuantumRegister(num_qubits)
     self.c: ClassicalRegister = ClassicalRegister(num_qubits)
