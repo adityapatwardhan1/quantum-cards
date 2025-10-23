@@ -4,15 +4,17 @@ from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 from qiskit_aer import Aer
 from qiskit.quantum_info import Statevector, random_unitary
 import numpy as np
+from qiskit.visualization import plot_histogram, plot_state_qsphere, plot_bloch_multivector, plot_bloch_vector
+from qiskit.visualization import plot_state_city
 import random
 import time
 import os
 import matplotlib.pyplot as plt
 
-# TODO: 
-# 1. Full Grover oracle operator (make it work on a partial bitstring)
-# 2. Comment the code
-
+# TODO: 1. Fix glitchy input() problem, 2. Apply gates, 3. Show statevector
+# after each move it's nice to see for a beginner that is playing
+# Might be good to add another algorithm somewhere in here
+# input() problem may just be because clear_output and input() don't work well together
 
 """
 Quantum cards with measurement
@@ -29,6 +31,9 @@ help if they have a good chance of their bitstring being measured
 "flip over the average" you apply a gate besides CZ to do a "partial diffusion"
 Reverse card: Undo the other player's last move
 Reset a qubit to zero
+Bernstein-Vazirani (not a card): query to find out one of your player's target bitstrings
+may only use once and a randomly chosen card of yours will be surrendered
+
 5. Once there are no more cards, measure the outcome and assign points.
 
 How this meets the requirements:
@@ -42,22 +47,37 @@ one can use CNOT to entangle the 2 leftmost qubits.
 of the game plausibly
 """
 
+"""
+Functions needed:
+- Actually apply the unitary corresponding to a card
+
+Done:
+- Generate bitstrings for each player
+- Create card decks
+- Getting input for which gate/qubits in the operation
+  (can just be indexing into a player's list of cards)
+- Some kind of visualization, it's a small number of qubits so statevector
+  simulation isn't that bad
+"""
+
 statevector_plot_fig = None
 statevector_plot_axes = None
 
+counts_plot_fig = None
+counts_plot_axes = None
+
 MOVE_NAMES = [
     'X', 'Y', 'Z', 'H', 'CX', 'CCX', 'I', 'S', 'S_dag', 'T', 'T_dag',
-    'SWAP', 'DIFFUSION', 'CZ', 'CCZ', 'RESET', 'GROVER'
+    'SWAP', 'DIFFUSION', 'CZ', 'CCZ', 'RESET'
 ]
 
 MOVE_WEIGHTS = [
-    3, 1, 2, 4, 3, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 2, 3
+    4, 1, 2, 4, 3, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 2
 ]
 
 MOVE_TO_NUM_QUBITS = {
     'X': 1, 'Y': 1, 'Z': 1, 'H': 1, 'CX': 2, 'CCX': 3, 'I': 0, 'S': 1, 'S_dag': 1,
-    'T': 1, 'T_dag': 1, 'SWAP': 2, 'CZ': 2, 'CCZ': 3, 'DIFFUSION': 0, 'RESET': 1,
-    'GROVER': 0
+    'T': 1, 'T_dag': 1, 'SWAP': 2, 'CZ': 2, 'CCZ': 3, 'DIFFUSION': 0, 'RESET': 1
 }
 
 def generate_bitstring(length: int):
@@ -146,47 +166,119 @@ def plot_statevector_data(statevector_dict, thresh_to_plot=0.02):
         plt.ion()
         statevector_plot_fig, statevector_plot_axes = plt.subplots(figsize=(10, 5))
         statevector_plot_fig.canvas.manager.set_window_title("Statevector Probabilities")
+  
   statevector_plot_axes.clear()
 
+  # Get filtered & sorted keys/values
   keys = sorted(statevector_dict.keys())
   values = [statevector_dict[key] for key in keys]
+  
+  # Set ticks first, then labels
+  import numpy as np
+  x = np.arange(len(keys)) # Fixed tick positions
   statevector_plot_axes.bar(keys, values, width=0.5, color='blue')
+  statevector_plot_axes.set_xticks(x)
+  statevector_plot_axes.set_xticklabels(keys, rotation=45)
+  
+  # Axis labels & limits
   statevector_plot_axes.set_ylabel('|Probability Amplitude|^2')
   statevector_plot_axes.set_xlabel('Measurement Outcome')
-  statevector_plot_axes.set_xticklabels(keys, rotation=45)
   statevector_plot_axes.set_ylim([0, 1])
 
   statevector_plot_fig.tight_layout()
   statevector_plot_fig.canvas.draw()
   statevector_plot_fig.canvas.flush_events()
+  
   plt.pause(0.1)
   pass
 
-def plot_counts(counts, thresh_to_plot=0.02):
+def plot_counts(counts:dict, thresh_to_plot:float=0.00, normalize:bool=False):
   """
-  Plots a statevector as a bar graph
+  Plots the measurement oucome as a bar graph
   :param counts: Vector representing counts after running a quantum circuit
   :type counts: dict
   :param thresh_to_plot: Minimum fraction of the times that a measurement
     outcome must occur among all the measurement outcomes to be plotted.
     This reduces the number of entries to plot which is better visually.
   :type thresh_to_plot: float
+  :param normalize: Whether to normalize the counts to fractions of total counts
+  :type normalize: bool
   """
-  pass
+  import numpy as np
+  global counts_plot_axes, counts_plot_fig
+  
+  # Compute total counts
+  total = sum(counts.values()) if counts else 0
+  if (total == 0):
+      print("No counts to plot")
+      return
+  
+  # (key, value) pairs; normalize if requested
+  items = [(k, (v/total) if normalize else v) for k, v in counts.items()]
+  if (normalize):
+      items = [(k, v) for k, v in items if v >= thresh_to_plot]
+  
+  # Sort by integer value of the bitstring
+  items.sort(key=lambda kv: int(kv[0], 2))
+  
+  # Extract keys & vals
+  keys = [k for k, _ in items]
+  vals = [v for _, v in items]
+  x = np.arange(len(keys))
 
-def print_game_rules():
-    rules = """
-Welcome to QARDS! Here's how to play:\n
-1. A quantum circuit where all qubits are in the |0> state is initialized. This number of qubits is at least 3.
-2. Each player is assigned a number of bitstrings at the beginning of the game. The goal for a player is to increase the likelihood of measuring one of their bitstrings.
-3. Cards are dealt at the beginning of the game randomly. There are different probabilities of dealing associated with each card being dealt.
-4. A random unitary is applied to the original quantum circuit.
-5. On each turn, a player chooses a card in their deck which corresponds to a unitary operator (except for the RESET card.) The player may choose which qubit(s) to apply this operator to, except for the Identity gate and Diffusion (which is applied to all qubits.)
-6. Players take alternating turns until both players are out of cards.
-7. After each player has played all of their cards, the circuit is measured with 1024 shots. The player who has more of their target bitstrings measured wins the game, and in the unlikely case that both players have the same number of bitstrings measured, there is a tie.
-Enter any input when you are ready to proceed: 
-"""
-    print(rules)
+  # Create figure/axes
+  plt.ion()
+  counts_plot_fig, counts_plot_axes = plt.subplots(figsize=(10, 5))
+  counts_plot_fig.canvas.manager.set_window_title("Measurement Results")
+
+  # Clear axes
+  ax = counts_plot_axes
+  ax.clear()
+  
+  # Red bars
+  bars = ax.bar(x, vals, width=0.5, color='red')
+  
+  # Axis labels
+  ax.set_ylabel('Counts')
+  ax.set_xlabel('Measurement Outcome')
+  
+  # Tick labels
+  ax.set_xticks(x)
+  ax.set_xticklabels(keys, rotation=45, ha='right')
+
+  # Axis labels & limits with headroom for text labels
+  if normalize:
+    ax.set_ylabel('Fraction of shots')
+    # Headroom above tallest bar for label text
+    ymax = max(vals) if vals else 1
+    ax.set_ylim(0, max(1.0, ymax * 1.15))
+  else:
+    ax.set_ylabel('Counts')
+    ymax = max(vals) if vals else 1
+    ax.set_ylim(0, ymax * 1.15)
+
+  # Value labels above bars
+    for rect, v in zip(bars, vals):
+        height = rect.get_height()
+        if normalize and as_percent:
+            label = f"{v:.1%}"
+        elif normalize:
+            label = f"{v:.3f}"
+        else:
+            label = f"{int(v)}"
+        ax.annotate(
+            label,
+            xy=(rect.get_x() + rect.get_width() / 2, height),
+            xytext=(0, 3),  # 3 px offset above the bar
+            textcoords="offset points",
+            ha="center", va="bottom"
+        )
+
+    counts_plot_fig.tight_layout()
+    counts_plot_fig.canvas.draw()
+    counts_plot_fig.canvas.flush_events()
+    plt.pause(0.1)
+
 
 def clear_terminal():
     # For Windows
@@ -196,24 +288,11 @@ def clear_terminal():
     else:
         os.system('clear')
 
-def verify_bitstring_of_length_n(bitstring: str, n: int):
-  if len(bitstring) != n:
-    return False
-  for i in range(len(bitstring)):
-    if not bitstring[i] in ['0', '1']:
-      return False
-  return True
-
-def get_grover_input(num_qubits: int):
-  cur = ""
-  while not verify_bitstring_of_length_n(cur, num_qubits):
-    cur = input(f"Enter a bitstring whose length is {num_qubits} that you want to amplify:")
-  return cur
 
 class Game:
   """Class that manages game loop and flow"""
 
-  def __init__(self, num_qubits, num_cards, num_bitstrings_per_player):
+  def __init__(self, num_qubits, num_cards, num_bitstrings_per_player=0):
     """
     Constructor for Game object
     :param num_qubits: Number of qubits in the circuit for the game
@@ -223,6 +302,9 @@ class Game:
     :param num_bitstrings_per_player: Number of target bitstrings for each player
     :type num_bitstrings_per_player: int
     """
+    # Default number of target bitstrings if not specified
+    if num_bitstrings_per_player == 0:
+      num_bitstrings_per_player = (2**(num_qubits - 2))
 
     # Initialize the quantum circuit with all qubits in the |+> state
     self.num_qubits = num_qubits
@@ -255,47 +337,27 @@ class Game:
     # Decide who goes first
     self.turn = random.choice([1, 2])
 
+  def print_game_rules(self):
+    # TODO: implement this function
+    pass
+
   def before_game_loop(self):
     """Prints information for the players before the game starts"""
-    # This game really needs a better name
+    print("Welcome to QARDS!")
+    self.print_game_rules()
     print("Cards for player 1:", self.deck_player_one)
     print("Cards for player 2:", self.deck_player_two)
     print("Flipping coin to determine who goes first...")
+    time.sleep(2)
     print(f"The first turn goes to: Player {self.turn}")
-    time.sleep(1)
+    time.sleep(2)
     clear_terminal()
     statevector_data = self.get_statevector_data()
     plot_statevector_data(statevector_data)
-
-  def apply_grover_oracle_with_planted_sol(self, bitstring: str):
-    """
-    Applies a Grover oracle with the planted solution 
-    corresponding to bitstring
-    :param bitstring: The bitstring to perform an iteration of Grover for
-    """
-    # Apply X gates when you want that certain bit to be 0
-    for i in range(len(bitstring)):
-        index = len(bitstring) - 1 - i
-        if bitstring[index] == 0:
-            self.qc.x(self.q[index])
-    self.qc.mcp(np.pi,self.q[1:],self.q[0])
-    for i in range(len(bitstring)):
-        index = len(bitstring) - 1 - i
-        if bitstring[index] == 0:
-            self.qc.x(self.q[index])
-
-  def diffusion_operator(self):
-    self.qc.h(self.q)
-    self.qc.x(self.q)
-    self.qc.mcp(np.pi,self.q[1:],self.q[0])
-    self.qc.x(self.q)
-    self.qc.h(self.q)
+    #clear_output(wait=True)
 
   def apply_move(self, card_played: Card):
-    """
-    Applies the move on a card played by the player.
-    :param card_played: Card that the player uses on a turn.
-    """
+
     qubit_numbers = []
     qubit_numbers = get_n_qubit_numbers(self.num_qubits,
                                         MOVE_TO_NUM_QUBITS[card_played.operation_name])
@@ -328,23 +390,24 @@ class Game:
       case 'SWAP':
         self.qc.swap(self.q[qubit_numbers[0]], self.q[qubit_numbers[1]])
       case 'DIFFUSION':
-        self.diffusion_operator()
+        self.qc.h(self.q)
+        self.qc.x(self.q)
+        self.qc.mcp(np.pi,self.q[1:],self.q[0])
+        self.qc.x(self.q)
+        self.qc.h(self.q)
       case 'RESET':
         self.qc.reset(self.q[qubit_numbers[0]])
         if random.random() < 0.5:
           self.qc.x(self.q[qubit_numbers[0]])
-      case 'GROVER':
-        bitstring = get_grover_input(self.num_qubits)
-        self.apply_grover_oracle_with_planted_sol(bitstring)
-        self.diffusion_operator()
 
 
-  def measure_output_end_of_game(self, num_shots=1024):
-    """Measures output at the end of the game using num_shots shots"""
+  def measure_output_end_of_game(self):
+    """Measures output at the end of the game"""
     for i in range(self.num_qubits):
       self.qc.measure(self.q[i], self.c[i])
     backend = Aer.get_backend('qasm_simulator')
-    result = backend.run(self.qc, shots=num_shots).result()
+    NUM_SHOTS = 1024
+    result = backend.run(self.qc, shots=NUM_SHOTS).result()
     counts = result.get_counts()
     return counts
 
@@ -362,6 +425,8 @@ class Game:
     :type statevector_data: list
     """
     print(statevector_data)
+    # for idx, data in enumerate(statevector_data):
+    #   print(str(bin(idx)[2:]).zfill(self.num_qubits), data)
 
   def get_target_bitstring_counts(self, counts):
     """
@@ -409,6 +474,7 @@ class Game:
     self.apply_move(card_played)
     statevector_data = self.get_statevector_data()
     plot_statevector_data(statevector_data)
+    # self.print_statevector_data(statevector_data)
     time.sleep(3)
     clear_terminal()
 
@@ -418,29 +484,49 @@ class Game:
       print("Number of turns left:", loop_counter)
       loop_counter -= 1
       self.handle_player_turn()
+      #clear_output(wait=True)
       self.turn = 2 if self.turn == 1 else 1
       self.handle_player_turn()
       self.turn = 2 if self.turn == 1 else 1
+      #clear_output(wait=True)
 
   def end_of_game(self):
     """Measures circuit and prints who won or if there was a tie"""
-    plt.ioff()
     print("Game has ended, measuring the circuit...")
     counts = self.measure_output_end_of_game()
-    print("Counts =", counts)
-    target_bitstring_counts = self.get_target_bitstring_counts(counts)
-    target_bitstring_count_player_one = target_bitstring_counts[0]
-    target_bitstring_count_player_two = target_bitstring_counts[1]
-    print("# of times player 1 measured one of their target bitstrings:",
-          target_bitstring_count_player_one)
-    print("# of times player 2 measured one of their target bitstrings:",
-          target_bitstring_count_player_two)
-    if target_bitstring_count_player_one > target_bitstring_count_player_two:
-      print("Player 1 wins!")
-    elif target_bitstring_count_player_one < target_bitstring_count_player_two:
-      print("Player 2 wins!")
+    #print("Counts =", counts)
+
+    # Score & announce winner
+    p1, p2 = self.get_target_bitstring_counts(counts)
+    print("# of times player 1 measured one of their target bitstrings:", p1)
+    print("# of times player 2 measured one of their target bitstrings:", p2)
+    if p1 > p2:
+        print("Player 1 wins!")
+    elif p1 < p2:
+        print("Player 2 wins!")
     else:
-      print("Game results in a tie.")
+        print("Game results in a tie.")
+        
+    # Close statevector plot
+    global statevector_plot_fig
+    plt.close(statevector_plot_fig)
+    statevector_plot_fig = None
+    
+    # Plot measurement results
+    plot_counts(counts)
+    
+    # # Keep only the counts window up for ~ 5 minutes, allow dragging/resizing, then close cleanly.
+    global counts_plot_fig
+    if counts_plot_fig is not None and plt.fignum_exists(counts_plot_fig.number):
+      timer = counts_plot_fig.canvas.new_timer(interval=300_000)  # 5 minutes = 300,000 ms
+      timer.single_shot = True
+      timer.add_callback(lambda: (plt.close(counts_plot_fig)))
+      timer.start()
+    
+    # Blocks while the GUI stays responsive
+    print("Showing measurement results")
+    plt.ioff()
+    plt.show()
 
   def play_game(self):
     self.before_game_loop()
@@ -448,36 +534,6 @@ class Game:
     self.end_of_game()
 
 if __name__ == '__main__':
-    print_game_rules()
-    ready_to_proceed = input()
-
-    clear_terminal()
-
-    num_qubits_to_play_on = 0
-    while True:
-      try:
-        num_qubits_to_play_on = int(input("Enter number of qubits you want to play the game using:"))
-        if not (3 <= num_qubits_to_play_on <= 5):
-          print("Enter a positive integer between 3 and 5, inclusive.")
-        else:
-          break
-      except ValueError:
-        print("Enter a positive integer between 3 and 5, inclusive.")
-    
-    num_cards = 0
-    while True:
-      try:
-        num_cards = int(input("Enter number of cards you want to play the game using:"))
-        if not (3 <= num_qubits_to_play_on <= 5):
-          print("You must play with at least one card.")
-        else:
-          break
-      except ValueError:
-        print("Enter a positive integer.")
-    
-    num_bitstrings = int(2 ** (num_qubits_to_play_on - 2))
-    clear_terminal()
-
     # Play game
-    game = Game(3, 5, 2)
+    game = Game(3, 1)
     game.play_game()
