@@ -68,17 +68,17 @@ counts_plot_axes = None
 
 MOVE_NAMES = [
     'X', 'Y', 'Z', 'H', 'CX', 'CCX', 'I', 'S', 'S_dag', 'T', 'T_dag',
-    'SWAP', 'DIFFUSION', 'CZ', 'CCZ', 'RESET', 'GROVER'
+    'SWAP', 'DIFFUSION', 'CZ', 'CCZ', 'RESET', 'GROVER', 'REVERSE'
 ]
 
 MOVE_WEIGHTS = [
-    3, 1, 2, 4, 3, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 2, 3
+    3, 1, 2, 4, 3, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 2, 3, 2
 ]
 
 MOVE_TO_NUM_QUBITS = {
     'X': 1, 'Y': 1, 'Z': 1, 'H': 1, 'CX': 2, 'CCX': 3, 'I': 0, 'S': 1, 'S_dag': 1,
     'T': 1, 'T_dag': 1, 'SWAP': 2, 'CZ': 2, 'CCZ': 3, 'DIFFUSION': 0, 'RESET': 1,
-    'GROVER': 0
+    'GROVER': 0, 'REVERSE': 0
 }
 
 def generate_bitstring(length: int):
@@ -132,7 +132,11 @@ class Card:
 def generate_random_deck(num_cards, num_qubits_in_game):
   """Generates a random deck at the beginning of the game"""
   card_names = random.choices(MOVE_NAMES, MOVE_WEIGHTS, k=num_cards)
+  while num_cards == 1 and (cards[0].operation_name == 'REVERSE' or cards[0].operation_name == 'I'):
+    # Avoid single identity or reverse card decks
+    card_names = random.choices(MOVE_NAMES, MOVE_WEIGHTS, k=num_cards)
   cards = [Card(card_name, MOVE_TO_NUM_QUBITS.get(card_name, num_qubits_in_game)) for card_name in card_names]
+  
   return cards
 
 def get_deck_operation(card_deck: list):
@@ -318,7 +322,7 @@ class Game:
     """
     # Default number of target bitstrings if not specified
     if num_bitstrings_per_player == 0:
-      num_bitstrings_per_player = (2**(num_qubits - 2))
+      num_bitstrings_per_player = int(2**(num_qubits - 2))
 
     # Initialize the quantum circuit using a random unitary
     self.num_qubits = num_qubits
@@ -327,7 +331,7 @@ class Game:
     self.qc: QuantumCircuit = QuantumCircuit(self.q, self.c)
     for _ in range(num_qubits):
       U = random_unitary(2**self.num_qubits)
-      self.qc.unitary(U, self.q)
+      # self.qc.unitary(U, self.q)
       #print(random_unitary(self.num_qubits))
       # self.qc.h(self.q[i])
 
@@ -350,6 +354,7 @@ class Game:
 
     # Decide who goes first
     self.turn = random.choice([1, 2])
+    self.list_of_previous_circuits = []
 
   def print_game_rules(self):
     print("Game Rules:")
@@ -404,6 +409,9 @@ class Game:
     self.qc.h(self.q)
 
   def apply_move(self, card_played: Card):
+    self.list_of_previous_circuits.append(self.qc)
+    self.qc = self.qc.copy()
+    
     qubit_numbers = []
     qubit_numbers = get_n_qubit_numbers(self.num_qubits,
                                         MOVE_TO_NUM_QUBITS[card_played.operation_name])
@@ -449,6 +457,10 @@ class Game:
         bitstring = get_grover_input(self.num_qubits)
         self.apply_grover_oracle_with_planted_sol(bitstring)
         self.diffusion_operator()
+      case 'REVERSE':
+        if len(self.list_of_previous_circuits) > 1:
+          self.qc = self.list_of_previous_circuits[-2].copy()
+        
 
 
   def measure_output_end_of_game(self):
@@ -527,16 +539,17 @@ class Game:
     # self.print_statevector_data(statevector_data)
     time.sleep(3)
     clear_terminal()
+    return card_played
 
   def game_loop(self):
     loop_counter = self.num_cards_per_player
     while loop_counter > 0:
       print("Number of turns left:", loop_counter)
       loop_counter -= 1
-      self.handle_player_turn()
+      self.last_card = self.handle_player_turn()
       #clear_output(wait=True)
       self.turn = 2 if self.turn == 1 else 1
-      self.handle_player_turn()
+      self.last_card = self.handle_player_turn()
       self.turn = 2 if self.turn == 1 else 1
       #clear_output(wait=True)
 
@@ -568,7 +581,7 @@ class Game:
     # # Keep only the counts window up for ~ 5 minutes, allow dragging/resizing, then close cleanly.
     global counts_plot_fig
     if counts_plot_fig is not None and plt.fignum_exists(counts_plot_fig.number):
-      timer = counts_plot_fig.canvas.new_timer(interval=3000)  # 5 minutes = 300,000 ms
+      timer = counts_plot_fig.canvas.new_timer(interval=10000)  # 10 seconds
       timer.single_shot = True
       timer.add_callback(lambda: (plt.close(counts_plot_fig)))
       timer.start()
@@ -592,7 +605,7 @@ if __name__ == '__main__':
     num_qubits = 0
     while True:
       try:
-        num_qubits = int(input("Enter number of qubits you want to play the game using:"))
+        num_qubits = int(input("Enter number of qubits you want to play the game using (3 - 7): "))
         if not (3 <= num_qubits <= 7):
           print("Enter a positive integer between 3 and 7, inclusive.")
         else:
@@ -603,18 +616,20 @@ if __name__ == '__main__':
     num_cards = 0
     while True:
       try:
-        num_cards = int(input("Enter number of cards you want to play the game using:"))
+        num_cards = int(input("Enter number of cards you want to play the game using (1 - 20): "))
         if num_cards < 1:
           print("You must play with at least one card.")
+        elif num_cards > 20:
+          print("Pick a lower number of cards (max 20).")
         else:
           break
       except ValueError:
-        print("Enter a positive integer.")
+        print("Enter a positive integerbetween 1 and 20, inclusive.")
 
     num_bitstrings_per_player = 0
     while True:
       try:
-        num_bitstrings_per_player = int(input(f"Enter number of bitstrings per player (Enter 0 for default: 2^{num_qubits - 2})"))
+        num_bitstrings_per_player = int(input(f"Enter number of bitstrings per player (Enter 0 for default: 2^{num_qubits - 2}): "))
         if num_bitstrings_per_player > int(2**(num_qubits - 1)):
           print("Pick a lower number of bitstrings per player. Each player can have at most half the bitstrings.")
         break
