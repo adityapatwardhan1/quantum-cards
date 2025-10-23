@@ -203,7 +203,6 @@ def plot_statevector_data(statevector_dict, thresh_to_plot=0.02):
   statevector_plot_fig.canvas.flush_events()
   
   plt.pause(0.1)
-  pass
 
 def plot_counts(counts:dict, thresh_to_plot:float=0.00, normalize:bool=False):
   """
@@ -373,7 +372,6 @@ class Game:
     print("4. Once all cards have been played, the qubits are measured and the winner is determined.")
     time.sleep(10)
     clear_terminal()
-    pass
 
   def before_game_loop(self):
     """Prints information for the players before the game starts"""
@@ -388,7 +386,6 @@ class Game:
     clear_terminal()
     statevector_data = self.get_statevector_data()
     plot_statevector_data(statevector_data)
-    #clear_output(wait=True)
 
   def apply_grover_oracle_with_planted_sol(self, bitstring: str):
     """
@@ -552,17 +549,14 @@ class Game:
       print("Number of turns left:", loop_counter)
       loop_counter -= 1
       self.last_card = self.handle_player_turn()
-      #clear_output(wait=True)
       self.turn = 2 if self.turn == 1 else 1
       self.last_card = self.handle_player_turn()
       self.turn = 2 if self.turn == 1 else 1
-      #clear_output(wait=True)
 
   def end_of_game(self):
     """Measures circuit and prints who won or if there was a tie"""
     print("Game has ended, measuring the circuit...")
     counts = self.measure_output_end_of_game()
-    #print("Counts =", counts)
 
     # Score & announce winner
     p1, p2 = self.get_target_bitstring_counts(counts)
