@@ -68,16 +68,17 @@ counts_plot_axes = None
 
 MOVE_NAMES = [
     'X', 'Y', 'Z', 'H', 'CX', 'CCX', 'I', 'S', 'S_dag', 'T', 'T_dag',
-    'SWAP', 'DIFFUSION', 'CZ', 'CCZ', 'RESET'
+    'SWAP', 'DIFFUSION', 'CZ', 'CCZ', 'RESET', 'GROVER'
 ]
 
 MOVE_WEIGHTS = [
-    4, 1, 2, 4, 3, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 2
+    3, 1, 2, 4, 3, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 2, 3
 ]
 
 MOVE_TO_NUM_QUBITS = {
     'X': 1, 'Y': 1, 'Z': 1, 'H': 1, 'CX': 2, 'CCX': 3, 'I': 0, 'S': 1, 'S_dag': 1,
-    'T': 1, 'T_dag': 1, 'SWAP': 2, 'CZ': 2, 'CCZ': 3, 'DIFFUSION': 0, 'RESET': 1
+    'T': 1, 'T_dag': 1, 'SWAP': 2, 'CZ': 2, 'CCZ': 3, 'DIFFUSION': 0, 'RESET': 1,
+    'GROVER': 0
 }
 
 def generate_bitstring(length: int):
@@ -288,6 +289,19 @@ def clear_terminal():
     else:
         os.system('clear')
 
+def verify_bitstring_of_length_n(bitstring: str, n: int):
+  if len(bitstring) != n:
+    return False
+  for i in range(len(bitstring)):
+    if not bitstring[i] in ['0', '1']:
+      return False
+  return True
+
+def get_grover_input(num_qubits: int):
+  cur = ""
+  while not verify_bitstring_of_length_n(cur, num_qubits):
+    cur = input(f"Enter a bitstring whose length is {num_qubits} that you want to amplify:")
+  return cur
 
 class Game:
   """Class that manages game loop and flow"""
@@ -339,7 +353,7 @@ class Game:
 
   def print_game_rules(self):
     print("Game Rules:")
-    print("1. There are", self.num_qubits, "qubits, each starting in the |+> state.")
+    print("1. There are", self.num_qubits, "qubits, forming a random (possibly entangled) state.")
     print("2. Each player has", self.num_target_bitstrings, "target bitstrings of length",
           self.num_qubits, "which, if measured, earn them points.")
     print("   The player with the most points after measuring the qubits wins.")
@@ -365,8 +379,31 @@ class Game:
     plot_statevector_data(statevector_data)
     #clear_output(wait=True)
 
-  def apply_move(self, card_played: Card):
+  def apply_grover_oracle_with_planted_sol(self, bitstring: str):
+    """
+    Applies a Grover oracle with the planted solution 
+    corresponding to bitstring
+    :param bitstring: The bitstring to perform an iteration of Grover for
+    """
+    # Apply X gates when you want that certain bit to be 0
+    for i in range(len(bitstring)):
+        index = len(bitstring) - 1 - i
+        if bitstring[index] == 0:
+            self.qc.x(self.q[index])
+    self.qc.mcp(np.pi,self.q[1:],self.q[0])
+    for i in range(len(bitstring)):
+        index = len(bitstring) - 1 - i
+        if bitstring[index] == 0:
+            self.qc.x(self.q[index])
 
+  def diffusion_operator(self):
+    self.qc.h(self.q)
+    self.qc.x(self.q)
+    self.qc.mcp(np.pi,self.q[1:],self.q[0])
+    self.qc.x(self.q)
+    self.qc.h(self.q)
+
+  def apply_move(self, card_played: Card):
     qubit_numbers = []
     qubit_numbers = get_n_qubit_numbers(self.num_qubits,
                                         MOVE_TO_NUM_QUBITS[card_played.operation_name])
@@ -408,6 +445,10 @@ class Game:
         self.qc.reset(self.q[qubit_numbers[0]])
         if random.random() < 0.5:
           self.qc.x(self.q[qubit_numbers[0]])
+      case 'GROVER':
+        bitstring = get_grover_input(self.num_qubits)
+        self.apply_grover_oracle_with_planted_sol(bitstring)
+        self.diffusion_operator()
 
 
   def measure_output_end_of_game(self):
@@ -527,7 +568,7 @@ class Game:
     # # Keep only the counts window up for ~ 5 minutes, allow dragging/resizing, then close cleanly.
     global counts_plot_fig
     if counts_plot_fig is not None and plt.fignum_exists(counts_plot_fig.number):
-      timer = counts_plot_fig.canvas.new_timer(interval=300_000)  # 5 minutes = 300,000 ms
+      timer = counts_plot_fig.canvas.new_timer(interval=3000)  # 5 minutes = 300,000 ms
       timer.single_shot = True
       timer.add_callback(lambda: (plt.close(counts_plot_fig)))
       timer.start()
@@ -543,6 +584,35 @@ class Game:
     self.end_of_game()
 
 if __name__ == '__main__':
+    # print_game_rules()
+    # ready_to_proceed = input()
+
+    # clear_terminal()
+
+    num_qubits_to_play_on = 0
+    while True:
+      try:
+        num_qubits_to_play_on = int(input("Enter number of qubits you want to play the game using:"))
+        if not (3 <= num_qubits_to_play_on <= 5):
+          print("Enter a positive integer between 3 and 5, inclusive.")
+        else:
+          break
+      except ValueError:
+        print("Enter a positive integer between 3 and 5, inclusive.")
+    
+    num_cards = 0
+    while True:
+      try:
+        num_cards = int(input("Enter number of cards you want to play the game using:"))
+        if not (3 <= num_qubits_to_play_on <= 5):
+          print("You must play with at least one card.")
+        else:
+          break
+      except ValueError:
+        print("Enter a positive integer.")
+    
+    num_bitstrings = int(2 ** (num_qubits_to_play_on - 2))
+    clear_terminal()
     # Play game
     game = Game(3, 1)
     game.play_game()
