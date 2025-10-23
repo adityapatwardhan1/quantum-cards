@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 
 """
 Quantum cards with measurement
-1. There are n (3 to 7, inclusive) qubits, each starting in the |+> state
+1. There are n (3 to 7, inclusive) qubits, starting in a random state
 2. Each player is assigned bitstrings of length n, which, if it is a measurement
 outcome, earns them points.
 Player with the most points after running 1024 shots of measurements wins.
@@ -37,7 +37,7 @@ may only use once and a randomly chosen card of yours will be surrendered
 5. Once there are no more cards, measure the outcome and assign points.
 
 How this meets the requirements:
-1. Superposition: The qubits begin in the |+> state and the quantum state is
+1. Superposition: The qubits begin in a random state and the quantum state is
 a superposition
 2. Entanglement: Can be achieved through controlled gates. Useful for Grover
 oracles and useful strategically if one has strings like 000 and 110 where
@@ -589,30 +589,39 @@ if __name__ == '__main__':
 
     # clear_terminal()
 
-    num_qubits_to_play_on = 0
+    num_qubits = 0
     while True:
       try:
-        num_qubits_to_play_on = int(input("Enter number of qubits you want to play the game using:"))
-        if not (3 <= num_qubits_to_play_on <= 5):
-          print("Enter a positive integer between 3 and 5, inclusive.")
+        num_qubits = int(input("Enter number of qubits you want to play the game using:"))
+        if not (3 <= num_qubits <= 7):
+          print("Enter a positive integer between 3 and 7, inclusive.")
         else:
           break
       except ValueError:
-        print("Enter a positive integer between 3 and 5, inclusive.")
+        print("Enter a positive integer between 3 and 7, inclusive.")
     
     num_cards = 0
     while True:
       try:
         num_cards = int(input("Enter number of cards you want to play the game using:"))
-        if not (3 <= num_qubits_to_play_on <= 5):
+        if num_cards < 1:
           print("You must play with at least one card.")
         else:
           break
       except ValueError:
         print("Enter a positive integer.")
+
+    num_bitstrings_per_player = 0
+    while True:
+      try:
+        num_bitstrings_per_player = int(input(f"Enter number of bitstrings per player (Enter 0 for default: 2^{num_qubits - 2})"))
+        if num_bitstrings_per_player > int(2**(num_qubits - 1)):
+          print("Pick a lower number of bitstrings per player. Each player can have at most half the bitstrings.")
+        break
+      except ValueError:
+        print("Enter a positive integer.")
     
-    num_bitstrings = int(2 ** (num_qubits_to_play_on - 2))
     clear_terminal()
     # Play game
-    game = Game(3, 1)
+    game = Game(num_qubits, num_cards, num_bitstrings_per_player=num_bitstrings_per_player)
     game.play_game()
