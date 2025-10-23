@@ -139,13 +139,21 @@ def generate_random_deck(num_cards, num_qubits_in_game):
   
   return cards
 
+def print_cards(current_player_deck: list):
+    print("[", end="")
+    for i in range(len(current_player_deck) - 1):
+      item = current_player_deck[i]
+      print(f"{i}:{item}, ", end="")
+    print(f"{len(current_player_deck) - 1}:{current_player_deck[-1]}]")
+
 def get_deck_operation(card_deck: list):
   """Removes and returns a card from the deck based on user input"""
   card_num = -1
   # Input validation loop
   while card_num < 0 or card_num >= len(card_deck):
     try:
-        print(f"Select a card from the deck by 0-based index: {card_deck}")
+        print(f"Select a card from the deck by 0-based index: ", end="")
+        print_cards(card_deck)
         the_input = input()
         card_num = int(the_input)
         if card_num < 0 or card_num >= len(card_deck):
@@ -331,9 +339,7 @@ class Game:
     self.qc: QuantumCircuit = QuantumCircuit(self.q, self.c)
     for _ in range(num_qubits):
       U = random_unitary(2**self.num_qubits)
-      # self.qc.unitary(U, self.q)
-      #print(random_unitary(self.num_qubits))
-      # self.qc.h(self.q[i])
+      self.qc.unitary(U, self.q)
 
     # Generate decks
     self.num_cards_per_player = num_cards
@@ -530,7 +536,6 @@ class Game:
     current_player_bistrings = (self.bitstrings_player_one if self.turn == 1
                                 else self.bitstrings_player_two)
     print("Your bitstrings:", current_player_bistrings)
-    print("Your cards:", current_player_deck)
     card_played = get_deck_operation(current_player_deck)
     # Apply unitary corresponding to card
     self.apply_move(card_played)
