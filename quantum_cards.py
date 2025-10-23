@@ -338,7 +338,16 @@ class Game:
     self.turn = random.choice([1, 2])
 
   def print_game_rules(self):
-    # TODO: implement this function
+    print("Game Rules:")
+    print("1. There are", self.num_qubits, "qubits, each starting in the |+> state.")
+    print("2. Each player has", self.num_target_bitstrings, "target bitstrings of length",
+          self.num_qubits, "which, if measured, earn them points.")
+    print("   The player with the most points after measuring the qubits wins.")
+    print("3. Each player has", self.num_cards_per_player, "cards that correspond to quantum gates.")
+    print("   On your turn, select a card from your deck to play.")
+    print("4. Once all cards have been played, the qubits are measured and the winner is determined.")
+    time.sleep(10)
+    clear_terminal()
     pass
 
   def before_game_loop(self):
