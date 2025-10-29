@@ -312,9 +312,8 @@ class Game:
     self.q: QuantumRegister = QuantumRegister(num_qubits)
     self.c: ClassicalRegister = ClassicalRegister(num_qubits)
     self.qc: QuantumCircuit = QuantumCircuit(self.q, self.c)
-    for _ in range(num_qubits):
-      U = random_unitary(2**self.num_qubits)
-      self.qc.unitary(U, self.q)
+    U = random_unitary(2**self.num_qubits)
+    self.qc.unitary(U, self.q)
 
     # Generate decks
     self.num_cards_per_player = num_cards
@@ -357,7 +356,7 @@ class Game:
     print("Cards for player 1:", self.deck_player_one)
     print("Cards for player 2:", self.deck_player_two)
     print("Bitstrings for player 1:", self.bitstrings_player_one)
-    print("Bitstrings for player 1:", self.bitstrings_player_two)
+    print("Bitstrings for player 2:", self.bitstrings_player_two)
     print("Flipping coin to determine who goes first...")
     time.sleep(2)
     print(f"The first turn goes to: Player {self.turn}")
