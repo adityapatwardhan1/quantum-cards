@@ -17,3 +17,4 @@ scipy==1.15.3
 six==1.17.0
 stevedore==5.5.0
 typing_extensions==4.15.0
+questionary==2.1.1

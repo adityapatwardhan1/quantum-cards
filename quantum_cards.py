@@ -8,6 +8,8 @@ import random
 import time
 import os
 import matplotlib.pyplot as plt
+import questionary
+import sys
 
 """
 Quantum cards with measurement
@@ -67,34 +69,31 @@ def generate_bitstring(length: int):
   return bitstring
 
 def get_qubit_number(num_qubits: int):
-    """Reads & validates input for what qubit the user wants the operation
-    to perform on"""
-    qubit_num = ""
-    while True:
-      try:
-        print(f"Enter a number between 0 and {num_qubits - 1} " +
-          "inclusive")
-        the_input = input()
-        qubit_num = int(the_input)
-        if qubit_num < 0 or qubit_num >= num_qubits:
-          continue
-        else:
-          break
-      except ValueError:
-        print("Not a valid integer input")
-    return qubit_num
+    """Gets qubit the user wants to perform operation on"""
+    choices = [str(i) for i in range(num_qubits)]
+    qubit_num = questionary.select(
+      f"Select a number between 0 and {num_qubits - 1}",
+      choices=choices
+    ).ask()
+    return int(qubit_num)
 
 def get_n_qubit_numbers(num_qubits: int, n: int):
-  """Reads input for what qubits the user wants operation to perform on
-  The qubits involved in the operation must be distinct"""
-  qubit_numbers = []
-  for i in range(n):
-    qubit_num = get_qubit_number(num_qubits)
-    while qubit_num in qubit_numbers:
-      print("You have already selected that qubit, try again")
-      qubit_num = get_qubit_number(num_qubits)
-    qubit_numbers.append(qubit_num)
-  return qubit_numbers
+    """Gets which n qubits the user wants to perform operation on"""
+    qubit_numbers = []
+    all_choices = [str(i) for i in range(num_qubits)]
+
+    for i in range(n):
+        available_choices = [q for q in all_choices if int(q) not in qubit_numbers]
+        qubit_str = questionary.select(
+            f"Select qubit {i+1} of {n}:",
+            choices=available_choices
+        ).ask()
+        if qubit_str is None:
+            print("Cancelled. Exiting game.")
+            sys.exit(0)
+        qubit_numbers.append(int(qubit_str))
+    return qubit_numbers
+
 
 class Card:
   """Class storing information about a card: operation and number of qubits"""
@@ -123,23 +122,23 @@ def print_cards(current_player_deck: list):
     print(f"{len(current_player_deck) - 1}:{current_player_deck[-1]}]")
 
 def get_deck_operation(card_deck: list):
-  """Removes and returns a card from the deck based on user input"""
-  card_num = -1
-  # Input validation loop
-  while card_num < 0 or card_num >= len(card_deck):
-    try:
-        print(f"Select a card from the deck by 0-based index: ", end="")
-        print_cards(card_deck)
-        the_input = input()
-        card_num = int(the_input)
-        if card_num < 0 or card_num >= len(card_deck):
-          print("Not a valid index in this deck")
-          continue
-        else:
-          break
-    except ValueError:
-      print("Not a valid integer input")
-  return card_deck.pop(card_num)
+    """Removes and returns a card from the deck based on user choice"""
+    if not card_deck:
+        print("No cards left in the deck!")
+        return None
+    
+    choices = [f"{i}: {card_deck[i]}" for i in range(len(card_deck))]
+    selected = questionary.select(
+        "Select a card from your deck:",
+        choices=choices
+    ).ask()
+
+    if selected is None:
+        print("Cancelled. Exiting game.")
+        sys.exit(0)
+
+    card_index = int(selected.split(":")[0])
+    return card_deck.pop(card_index)
 
 def plot_statevector_data(statevector_dict, thresh_to_plot=0.02):
   """
@@ -276,18 +275,23 @@ def clear_terminal():
     else:
         os.system('clear')
 
-def verify_bitstring_of_length_n(bitstring: str, n: int):
-  if len(bitstring) != n:
-    return False
-  for i in range(len(bitstring)):
-    if not bitstring[i] in ['0', '1']:
-      return False
-  return True
-
 def get_grover_input(num_qubits: int):
-  cur = ""
-  while not verify_bitstring_of_length_n(cur, num_qubits):
-    cur = input(f"Enter a bitstring whose length is {num_qubits} that you want to amplify:")
+  def verify_bitstring_of_length_n(bitstring: str):
+    if len(bitstring) != num_qubits:
+      return False
+    for i in range(len(bitstring)):
+      if not bitstring[i] in ['0', '1']:
+        return False
+    return True
+  
+  cur = questionary.text(
+      f"Enter a bitstring of length {num_qubits} to amplify:",
+      validate=verify_bitstring_of_length_n
+  ).ask()
+
+  if cur is None:
+      print("Cancelled.")
+      sys.exit(0)
   return cur
 
 class Game:
@@ -572,42 +576,85 @@ class Game:
     self.game_loop()
     self.end_of_game()
 
-if __name__ == '__main__':
-    num_qubits = 0
-    while True:
-      try:
-        num_qubits = int(input("Enter number of qubits you want to play the game using (3 - 7): "))
-        if not (3 <= num_qubits <= 7):
-          print("Enter a positive integer between 3 and 7, inclusive.")
-        else:
-          break
-      except ValueError:
-        print("Enter a positive integer between 3 and 7, inclusive.")
-    
-    num_cards = 0
-    while True:
-      try:
-        num_cards = int(input("Enter number of cards you want to play the game using (1 - 20): "))
-        if num_cards < 1:
-          print("You must play with at least one card.")
-        elif num_cards > 20:
-          print("Pick a lower number of cards (max 20).")
-        else:
-          break
-      except ValueError:
-        print("Enter a positive integerbetween 1 and 20, inclusive.")
+import questionary
+import sys
 
-    num_bitstrings_per_player = 0
-    while True:
-      try:
-        num_bitstrings_per_player = int(input(f"Enter number of bitstrings per player (Enter 0 for default: 2^{num_qubits - 2}): "))
-        if num_bitstrings_per_player > int(2**(num_qubits - 1)):
-          print("Pick a lower number of bitstrings per player. Each player can have at most half the bitstrings.")
-        break
-      except ValueError:
-        print("Enter a positive integer.")
+if __name__ == '__main__':
+  num_qubits = questionary.text(
+      "Enter number of qubits you want to play the game using (3–7):",
+      validate=lambda val: (
+          "Please enter an integer between 3 and 7."
+          if not val.isdigit() or not (3 <= int(val) <= 7)
+          else True
+      )
+  ).ask()
+  if num_qubits is None:
+      sys.exit(0)
+  num_qubits = int(num_qubits)
+
+  num_cards = questionary.text(
+      "Enter number of cards you want to play the game using (1–20):",
+      validate=lambda val: (
+          "Please enter an integer between 1 and 20."
+          if not val.isdigit() or not (1 <= int(val) <= 20)
+          else True
+      )
+  ).ask()
+  if num_cards is None:
+      sys.exit(0)
+  num_cards = int(num_cards)
+
+  num_bitstrings_per_player = questionary.text(
+      f"Enter number of bitstrings per player (0 for default: 2^{num_qubits - 2}):",
+      validate=lambda val: (
+          "Please enter a non-negative integer no greater than 2^(n-1)."
+          if not val.isdigit() or int(val) > 2 ** (num_qubits - 1)
+          else True
+      )
+  ).ask()
+  if num_bitstrings_per_player is None:
+    sys.exit(0)
+  num_bitstrings_per_player = int(num_bitstrings_per_player)
+  clear_terminal()
+  game = Game(num_qubits, num_cards, num_bitstrings_per_player=num_bitstrings_per_player)
+  game.play_game()
+
+# if __name__ == '__main__':
+#     num_qubits = 0
+#     while True:
+#       try:
+#         num_qubits = int(input("Enter number of qubits you want to play the game using (3 - 7): "))
+#         if not (3 <= num_qubits <= 7):
+#           print("Enter a positive integer between 3 and 7, inclusive.")
+#         else:
+#           break
+#       except ValueError:
+#         print("Enter a positive integer between 3 and 7, inclusive.")
     
-    clear_terminal()
-    # Play game
-    game = Game(num_qubits, num_cards, num_bitstrings_per_player=num_bitstrings_per_player)
-    game.play_game()
+#     num_cards = 0
+#     while True:
+#       try:
+#         num_cards = int(input("Enter number of cards you want to play the game using (1 - 20): "))
+#         if num_cards < 1:
+#           print("You must play with at least one card.")
+#         elif num_cards > 20:
+#           print("Pick a lower number of cards (max 20).")
+#         else:
+#           break
+#       except ValueError:
+#         print("Enter a positive integerbetween 1 and 20, inclusive.")
+
+#     num_bitstrings_per_player = 0
+#     while True:
+#       try:
+#         num_bitstrings_per_player = int(input(f"Enter number of bitstrings per player (Enter 0 for default: 2^{num_qubits - 2}): "))
+#         if num_bitstrings_per_player > int(2**(num_qubits - 1)):
+#           print("Pick a lower number of bitstrings per player. Each player can have at most half the bitstrings.")
+#         break
+#       except ValueError:
+#         print("Enter a positive integer.")
+    
+#     clear_terminal()
+#     # Play game
+#     game = Game(num_qubits, num_cards, num_bitstrings_per_player=num_bitstrings_per_player)
+#     game.play_game()
