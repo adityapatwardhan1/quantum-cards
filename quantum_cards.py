@@ -374,12 +374,12 @@ class Game:
     # Apply X gates when you want that certain bit to be 0
     for i in range(len(bitstring)):
         index = len(bitstring) - 1 - i
-        if bitstring[index] == 0:
+        if bitstring[index] == '0':
             self.qc.x(self.q[index])
     self.qc.mcp(np.pi,self.q[1:],self.q[0])
     for i in range(len(bitstring)):
         index = len(bitstring) - 1 - i
-        if bitstring[index] == 0:
+        if bitstring[index] == '0':
             self.qc.x(self.q[index])
 
   def diffusion_operator(self):
