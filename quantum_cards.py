@@ -108,7 +108,7 @@ class Card:
 def generate_random_deck(num_cards, num_qubits_in_game):
   """Generates a random deck at the beginning of the game"""
   card_names = random.choices(MOVE_NAMES, MOVE_WEIGHTS, k=num_cards)
-  while num_cards == 1 and (cards[0].operation_name == 'REVERSE' or cards[0].operation_name == 'I'):
+  while num_cards == 1 and (card_names[0] == 'REVERSE' or card_names[0] == 'I'):
     # Avoid single identity or reverse card decks
     card_names = random.choices(MOVE_NAMES, MOVE_WEIGHTS, k=num_cards)
   cards = [Card(card_name, MOVE_TO_NUM_QUBITS.get(card_name, num_qubits_in_game)) for card_name in card_names]
