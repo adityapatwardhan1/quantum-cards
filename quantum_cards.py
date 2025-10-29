@@ -20,8 +20,6 @@ They may pick which qubits it operates on, however
 4. Special cards besides the standard unitary gates we learned in class:
 Diffusion operator card: applies the diffusion operator from Grover's which can
 help if they have a good chance of their bitstring being measured
-- Perhaps make the diffusion only work on some qubits or instead of a full
-"flip over the average" you apply a gate besides CZ to do a "partial diffusion"
 Reverse card: Undo the other player's last move
 Reset a qubit to zero
 
@@ -38,19 +36,6 @@ one can use CNOT to entangle the 2 leftmost qubits.
 of the game plausibly
 """
 
-"""
-Functions needed:
-- Actually apply the unitary corresponding to a card
-
-Done:
-- Generate bitstrings for each player
-- Create card decks
-- Getting input for which gate/qubits in the operation
-  (can just be indexing into a player's list of cards)
-- Some kind of visualization, it's a small number of qubits so statevector
-  simulation isn't that bad
-"""
-
 statevector_plot_fig = None
 statevector_plot_axes = None
 
@@ -63,7 +48,7 @@ MOVE_NAMES = [
 ]
 
 MOVE_WEIGHTS = [
-    3, 1, 2, 4, 3, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 2, 3, 2
+    4, 1, 3, 5, 3, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 2, 2, 2
 ]
 
 MOVE_TO_NUM_QUBITS = {
@@ -362,7 +347,7 @@ class Game:
     print("   On your turn, select a card from your deck to play.")
     print("4. Once all cards have been played, the qubits are measured and the winner is determined.")
     print("Note: Bitstrings in the game are in little-endian convention, so Qubit 0 is the rightmost qubit.")
-    time.sleep(10)
+    time.sleep(5)
     clear_terminal()
 
   def before_game_loop(self):
@@ -589,11 +574,6 @@ class Game:
     self.end_of_game()
 
 if __name__ == '__main__':
-    # print_game_rules()
-    # ready_to_proceed = input()
-
-    # clear_terminal()
-
     num_qubits = 0
     while True:
       try:
