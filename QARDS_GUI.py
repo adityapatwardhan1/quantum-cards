@@ -14,6 +14,15 @@ from PySide6 import QtCore, QtWidgets
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
+try:
+  UNIQUE = QtCore.Qt.ConnectionType.UniqueConnection  # PySide6 newer
+except AttributeError:
+  UNIQUE = QtCore.Qt.UniqueConnection                  # fallback
+  
+# User options
+enable_skip = False       # Whether to enable "End Turn (No Move)" button
+measure_anytime = False   # Whether to allow measuring before both decks are empty
+
 """
 Quantum cards with measurement
 1. There are n (3 to 7, inclusive) qubits, starting in a random state
@@ -430,12 +439,22 @@ class MainWindow(QtWidgets.QWidget):
 
     # Action buttons
     row_btns = QtWidgets.QHBoxLayout()
+    
+    # Play card button
     self.play_btn = QtWidgets.QPushButton("Play Selected Card")
-    self.skip_btn = QtWidgets.QPushButton("End Turn (No Move)")
-    self.measure_btn = QtWidgets.QPushButton("Measure / End Game")
     row_btns.addWidget(self.play_btn)
-    row_btns.addWidget(self.skip_btn)
+    
+    # Skip turn button (optional)
+    self.skip_btn = QtWidgets.QPushButton("End Turn (No Move)")
+    if (enable_skip):
+      row_btns.addWidget(self.skip_btn)
+    
+    # Measure / end game button
+    self.measure_btn = QtWidgets.QPushButton("Measure / End Game")
     row_btns.addWidget(self.measure_btn)
+    if (not measure_anytime):
+      self.measure_btn.setEnabled(False)
+    
     mid.addLayout(row_btns)
     
     # Explicit selectors for multi-qubit gates (hidden by default)
@@ -553,6 +572,59 @@ class MainWindow(QtWidgets.QWidget):
       cb.setChecked(False)
     self.refresh_all()
     
+  def update_measure_enabled(self):
+    can_measure = (len(self.game.deck_player_one) == 0
+                   and len(self.game.deck_player_two) == 0)
+    self.measure_btn.setEnabled(can_measure)
+    self.measure_btn.setToolTip("" if can_measure else
+        "Play all cards from both decks to enable measuring.")
+    
+  def ensure_distinct_selector(self):
+    """
+    Keep selector combos distinct for CX/CZ (2), CCX/CCZ (3), and SWAP (2).
+    Auto-bumps later fields to the next free index when collisions occur.
+    """
+    if not self.selector_box.isVisible():
+      return
+
+    title = self.selector_box.title()
+    n = self.game.num_qubits
+    if n <= 1:
+      return
+
+    def set_idx(combo, idx):
+      combo.blockSignals(True)
+      combo.setCurrentIndex(idx % n)
+      combo.blockSignals(False)
+
+    if title.startswith("CX") or title.startswith("CZ"):
+      a = self.ctrl1_combo.currentIndex()
+      b = self.tgt_combo.currentIndex()
+      if a == b:
+        set_idx(self.tgt_combo, (b + 1) % n)
+
+    elif title.startswith("CCX") or title.startswith("CCZ"):
+      # Make a, b, c all distinct by greedily bumping duplicates.
+      a = self.ctrl1_combo.currentIndex()
+      b = self.ctrl2_combo.currentIndex()
+      c = self.tgt_combo.currentIndex()
+
+      used = set()
+      # order matters: treat ctrl1 fixed, then ctrl2, then target
+      for combo, idx in ((self.ctrl1_combo, a), (self.ctrl2_combo, b), (self.tgt_combo, c)):
+        cur = idx
+        while cur in used and n > len(used):
+          cur = (cur + 1) % n
+        if cur != idx:
+          set_idx(combo, cur)
+        used.add(cur)
+
+    elif title.startswith("SWAP"):
+      a = self.ctrl1_combo.currentIndex()
+      b = self.tgt_combo.currentIndex()
+      if a == b:
+        set_idx(self.tgt_combo, (b + 1) % n)
+    
   def on_card_highlight(self, which_deck: int):
     deck = self.game.deck_player_one if which_deck == 1 else self.game.deck_player_two
     view = self.deck_p1 if which_deck == 1 else self.deck_p2
@@ -597,6 +669,8 @@ class MainWindow(QtWidgets.QWidget):
         self.lbl_ctrl.setVisible(True); self.ctrl1_combo.setVisible(True)
         self.lbl_tgt.setVisible(True);  self.tgt_combo.setVisible(True)
         set_distinct_defaults([(self.ctrl1_combo, 0), (self.tgt_combo, 1)])
+        self.ctrl1_combo.currentIndexChanged.connect(self.ensure_distinct_selector, UNIQUE)
+        self.tgt_combo.currentIndexChanged.connect(self.ensure_distinct_selector, UNIQUE)
 
       elif op in ('CCX', 'CCZ'):
         self.selector_box.setTitle(f"{op} selection")
@@ -609,6 +683,8 @@ class MainWindow(QtWidgets.QWidget):
           (self.ctrl2_combo, 1),
           (self.tgt_combo,   2),
         ])
+        for combo in (self.ctrl1_combo, self.ctrl2_combo, self.tgt_combo):
+          combo.currentIndexChanged.connect(self.ensure_distinct_selector, UNIQUE)
 
       elif op == 'SWAP':
         self.selector_box.setTitle("SWAP selection")
@@ -618,6 +694,8 @@ class MainWindow(QtWidgets.QWidget):
         self.lbl_ctrl.setVisible(True); self.ctrl1_combo.setVisible(True)
         self.lbl_tgt.setVisible(True);  self.tgt_combo.setVisible(True)
         set_distinct_defaults([(self.ctrl1_combo, 0), (self.tgt_combo, 1)])
+        self.ctrl1_combo.currentIndexChanged.connect(self.ensure_distinct_selector, UNIQUE)
+        self.tgt_combo.currentIndexChanged.connect(self.ensure_distinct_selector, UNIQUE)
 
     else:
       # For 0/1-qubit gates (X, H, S, …), GROVER/DIFFUSION/I, keep the simple selector visible or hide if none needed
@@ -640,6 +718,7 @@ class MainWindow(QtWidgets.QWidget):
     need = MOVE_TO_NUM_QUBITS.get(card.operation_name, 0)
     
     # Decide how to gather qubits for this gate
+    # CX / CZ
     if card.operation_name in ('CX', 'CZ'):
       a = int(self.ctrl1_combo.currentText())
       b = int(self.tgt_combo.currentText())
@@ -654,6 +733,7 @@ class MainWindow(QtWidgets.QWidget):
       qs = [a, b]
       self.set_status(f"{card.operation_name}: control={a}  target={b}")
 
+    # CCX / CCZ
     elif card.operation_name in ('CCX', 'CCZ'):
       a = int(self.ctrl1_combo.currentText())
       b = int(self.ctrl2_combo.currentText())
@@ -672,6 +752,7 @@ class MainWindow(QtWidgets.QWidget):
       qs = [a, b, c]
       self.set_status(f"{card.operation_name}: controls={a},{b}  target={c}")
 
+    # SWAP
     elif card.operation_name == 'SWAP':
       a = int(self.ctrl1_combo.currentText())
       b = int(self.tgt_combo.currentText())
