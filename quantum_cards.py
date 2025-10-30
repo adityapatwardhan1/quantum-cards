@@ -350,7 +350,14 @@ class Game:
     print("   On your turn, select a card from your deck to play.")
     print("4. Once all cards have been played, the qubits are measured and the winner is determined.")
     print("Note: Bitstrings in the game are in little-endian convention, so Qubit 0 is the rightmost qubit.")
-    time.sleep(5)
+
+    print("Cards:")
+    print("X, Y, Z, H, CX, CCX, CZ, CCZ, S, T, S_dag, T_dag, I, SWAP: These apply the corresponding quantum gate on qubit(s) of the player’s choice.")
+    print("DIFFUSION: This applies the Grover diffusion operator to the current quantum state.")
+    print("RESET: This resets one of the qubits to |0> using Qiskit’s reset() method")
+    print("GROVER: This applies one iteration of Grover’s algorithm using an oracle that encodes a bitstring chosen by the player.")
+    print("REVERSE: This reverses the move made by the previous player by going to an earlier version of the quantum circuit.")
+    questionary.confirm("Continue?").ask()
     clear_terminal()
 
   def before_game_loop(self):
@@ -576,9 +583,6 @@ class Game:
     self.game_loop()
     self.end_of_game()
 
-import questionary
-import sys
-
 if __name__ == '__main__':
   num_qubits = questionary.text(
       "Enter number of qubits you want to play the game using (3–7):",
@@ -618,43 +622,3 @@ if __name__ == '__main__':
   clear_terminal()
   game = Game(num_qubits, num_cards, num_bitstrings_per_player=num_bitstrings_per_player)
   game.play_game()
-
-# if __name__ == '__main__':
-#     num_qubits = 0
-#     while True:
-#       try:
-#         num_qubits = int(input("Enter number of qubits you want to play the game using (3 - 7): "))
-#         if not (3 <= num_qubits <= 7):
-#           print("Enter a positive integer between 3 and 7, inclusive.")
-#         else:
-#           break
-#       except ValueError:
-#         print("Enter a positive integer between 3 and 7, inclusive.")
-    
-#     num_cards = 0
-#     while True:
-#       try:
-#         num_cards = int(input("Enter number of cards you want to play the game using (1 - 20): "))
-#         if num_cards < 1:
-#           print("You must play with at least one card.")
-#         elif num_cards > 20:
-#           print("Pick a lower number of cards (max 20).")
-#         else:
-#           break
-#       except ValueError:
-#         print("Enter a positive integerbetween 1 and 20, inclusive.")
-
-#     num_bitstrings_per_player = 0
-#     while True:
-#       try:
-#         num_bitstrings_per_player = int(input(f"Enter number of bitstrings per player (Enter 0 for default: 2^{num_qubits - 2}): "))
-#         if num_bitstrings_per_player > int(2**(num_qubits - 1)):
-#           print("Pick a lower number of bitstrings per player. Each player can have at most half the bitstrings.")
-#         break
-#       except ValueError:
-#         print("Enter a positive integer.")
-    
-#     clear_terminal()
-#     # Play game
-#     game = Game(num_qubits, num_cards, num_bitstrings_per_player=num_bitstrings_per_player)
-#     game.play_game()
