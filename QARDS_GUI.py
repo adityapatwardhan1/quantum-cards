@@ -1,7 +1,5 @@
 # THIS IS A GUI VERSION, REPLACES CLI INPUTS
 from __future__ import annotations
-
-# Keeping your imports (trimmed for GUI use)
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 from qiskit_aer import Aer
 from qiskit.quantum_info import Statevector, random_unitary
@@ -15,13 +13,13 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
 try:
-  UNIQUE = QtCore.Qt.ConnectionType.UniqueConnection  # PySide6 newer
+  UNIQUE = QtCore.Qt.ConnectionType.UniqueConnection
 except AttributeError:
-  UNIQUE = QtCore.Qt.UniqueConnection                  # fallback
+  UNIQUE = QtCore.Qt.UniqueConnection
   
 # User options
-enable_skip = False       # Whether to enable "End Turn (No Move)" button
-measure_anytime = False   # Whether to allow measuring before both decks are empty
+enable_skip = False
+enable_measure = False
 
 """
 Quantum cards with measurement
@@ -74,10 +72,6 @@ def generate_bitstring(length: int):
   for _ in range(length):
     bitstring += random.choice(['0', '1'])
   return bitstring
-
-
-# NOTE: CLI input helpers are not needed in the GUI and are omitted.
-# get_qubit_number(), get_n_qubit_numbers(), get_grover_input() replaced by GUI.
 
 
 class Card:
@@ -188,11 +182,10 @@ class Game:
     :param num_bitstrings_per_player: Number of target bitstrings for each player
     :type num_bitstrings_per_player: int
     """
-    # Default number of target bitstrings if not specified
     if num_bitstrings_per_player == 0:
       num_bitstrings_per_player = int(2**(num_qubits - 2))
 
-    # Initialize the quantum circuit using a random unitary
+    # Initialize random quantum circuit
     self.num_qubits = num_qubits
     self.q: QuantumRegister = QuantumRegister(num_qubits)
     self.c: ClassicalRegister = ClassicalRegister(num_qubits)
@@ -205,7 +198,7 @@ class Game:
     self.deck_player_one = generate_random_deck(num_cards, num_qubits)
     self.deck_player_two = generate_random_deck(num_cards, num_qubits)
 
-    # Generate target bitstrings
+    # Assign target bitstrings
     self.num_target_bitstrings = num_bitstrings_per_player
     self.bitstrings_player_one = set()
     while len(self.bitstrings_player_one) < self.num_target_bitstrings:
@@ -227,7 +220,6 @@ class Game:
     corresponding to bitstring
     :param bitstring: The bitstring to perform an iteration of Grover for
     """
-    # Apply X gates when you want that certain bit to be 0
     for i in range(len(bitstring)):
         index = len(bitstring) - 1 - i
         if bitstring[index] == '0':
@@ -252,19 +244,15 @@ class Game:
     op = card_played.operation_name
     qubit_numbers = qubit_numbers or []
 
-    # REVERSE is special: restore last snapshot and consume it
+    # REVERSE is special: restore last snapshot
     if op == 'REVERSE':
       if self.list_of_previous_circuits:
-        self.qc = self.list_of_previous_circuits.pop()  # true 1-step undo
+        self.qc = self.list_of_previous_circuits.pop()
       # If no history, do nothing (no-op)
       return
 
-    # For all non-REVERSE moves:
-    # Store a snapshot of the current circuit (copy) to enable future undo,
-    # then operate on a working copy.
     self.list_of_previous_circuits.append(self.qc.copy())
     self.qc = self.qc.copy()
-
     q = self.q
 
     match op:
@@ -298,7 +286,7 @@ class Game:
         self.diffusion_operator()
       case 'RESET':
         self.qc.reset(q[qubit_numbers[0]])
-        # Randomize post-reset |0> → |1> half the time (kept from your original)
+        # Randomize post-reset |0> -> |1> half the time
         if random.random() < 0.5:
           self.qc.x(q[qubit_numbers[0]])
       case 'GROVER':
@@ -310,7 +298,6 @@ class Game:
         self.apply_grover_oracle_with_planted_sol(grover_string)
         self.diffusion_operator()
       case 'I':
-        # Identity: no change to circuit, but we still snapshot so it can be undone
         pass
 
   def measure_output_end_of_game(self):
@@ -359,7 +346,7 @@ class MplCanvas(FigureCanvas):
     self.fig.suptitle(title)
 
 
-# Simple list widget for decks
+# List widget for decks
 class DeckView(QtWidgets.QGroupBox):
   """List UI for a player's deck (select a card by index)."""
   selectionChanged = QtCore.Signal(int)
@@ -399,15 +386,14 @@ class MainWindow(QtWidgets.QWidget):
     self.setWindowTitle("QARDS — GUI")
     self.resize(1300, 820)
 
-    # Game parameters – can be trivially exposed via a start dialog
+    # Game parameters
     num_qubits = 3
     num_cards = 5
     num_bitstrings_per_player = 0  # 0 uses default 2^(n-2)
 
-    # Construct the game using your same class and logic
     self.game = Game(num_qubits, num_cards, num_bitstrings_per_player)
 
-    # Left: decks + targets
+    # Decks + targets
     left = QtWidgets.QVBoxLayout()
     self.deck_p1 = DeckView("Player 1 Deck")
     self.deck_p2 = DeckView("Player 2 Deck")
@@ -421,13 +407,12 @@ class MainWindow(QtWidgets.QWidget):
     left.addWidget(self.targets_p2)
     left.addStretch(1)
 
-    # Middle: move controls
+    # Move controls
     mid = QtWidgets.QVBoxLayout()
     self.turn_label = QtWidgets.QLabel()
     self.turn_label.setStyleSheet("font-weight: 600; font-size: 16px;")
     mid.addWidget(self.turn_label)
 
-    # Regular selector (for 0- and 1-qubit gates) — put checkboxes in a box so we can hide/show
     self.simple_selector_box = QtWidgets.QGroupBox("Select qubits for the selected card:")
     row = QtWidgets.QHBoxLayout(self.simple_selector_box)
     self.qchecks: list[QtWidgets.QCheckBox] = []
@@ -437,27 +422,18 @@ class MainWindow(QtWidgets.QWidget):
       self.qchecks.append(cb)
     mid.addWidget(self.simple_selector_box)
 
-    # Action buttons
+    # Buttons
     row_btns = QtWidgets.QHBoxLayout()
-    
-    # Play card button
     self.play_btn = QtWidgets.QPushButton("Play Selected Card")
-    row_btns.addWidget(self.play_btn)
-    
-    # Skip turn button (optional)
+    row_btns.addWidget(self.play_btn)    
     self.skip_btn = QtWidgets.QPushButton("End Turn (No Move)")
     if (enable_skip):
       row_btns.addWidget(self.skip_btn)
-    
-    # Measure / end game button
     self.measure_btn = QtWidgets.QPushButton("Measure / End Game")
-    row_btns.addWidget(self.measure_btn)
-    if (not measure_anytime):
-      self.measure_btn.setEnabled(False)
-    
+    if (enable_measure):
+      row_btns.addWidget(self.measure_btn)
     mid.addLayout(row_btns)
     
-    # Explicit selectors for multi-qubit gates (hidden by default)
     self.selector_box = QtWidgets.QGroupBox("Gate qubit selection")
     sel_lay = QtWidgets.QFormLayout(self.selector_box)
 
@@ -470,16 +446,14 @@ class MainWindow(QtWidgets.QWidget):
       self.ctrl2_combo.addItem(s)
       self.tgt_combo.addItem(s)
 
-    # Keep label widgets so we can show/hide without using QFormLayout roles
     self.lbl_ctrl  = QtWidgets.QLabel("Control:")
     self.lbl_ctrl2 = QtWidgets.QLabel("Control 2:")
     self.lbl_tgt   = QtWidgets.QLabel("Target:")
 
-    sel_lay.addRow(self.lbl_ctrl,  self.ctrl1_combo)  # CX/CZ
-    sel_lay.addRow(self.lbl_ctrl2, self.ctrl2_combo)  # CCX/CCZ
-    sel_lay.addRow(self.lbl_tgt,   self.tgt_combo)    # Target or 2nd qubit
+    sel_lay.addRow(self.lbl_ctrl,  self.ctrl1_combo)
+    sel_lay.addRow(self.lbl_ctrl2, self.ctrl2_combo)
+    sel_lay.addRow(self.lbl_tgt,   self.tgt_combo)
 
-    # Start hidden
     self.selector_box.setVisible(False)
     self.lbl_ctrl.setVisible(False);  self.ctrl1_combo.setVisible(False)
     self.lbl_ctrl2.setVisible(False); self.ctrl2_combo.setVisible(False)
@@ -490,7 +464,7 @@ class MainWindow(QtWidgets.QWidget):
     mid.addWidget(self.status)
     mid.addStretch(1)
 
-    # Right: embedded plots
+    # Embedded plots
     right = QtWidgets.QVBoxLayout()
     self.state_canvas = MplCanvas("Statevector Probabilities")
     self.counts_canvas = MplCanvas("Measurement Results")
@@ -503,24 +477,20 @@ class MainWindow(QtWidgets.QWidget):
     root.addLayout(mid, 1)
     root.addLayout(right, 2)
 
-    # Wire buttons
     self.play_btn.clicked.connect(self.on_play)
     self.skip_btn.clicked.connect(self.on_skip)
-    self.measure_btn.clicked.connect(self.on_measure)
-    
-    # When the user highlights a card in either deck, adjust selector panel
+    self.measure_btn.clicked.connect(self.on_measure)    
     self.deck_p1.selectionChanged.connect(lambda _: self.on_card_highlight(1))
     self.deck_p2.selectionChanged.connect(lambda _: self.on_card_highlight(2))
 
-    # Auto-clear counts after ~30s (non-blocking)
+    # Auto-clear counts
     self.counts_timer = QtCore.QTimer(self)
     self.counts_timer.setSingleShot(True)
     self.counts_timer.timeout.connect(self.clear_counts_plot)
 
-    # Initialize UI
     self.refresh_all()
 
-  # Helpers
+  # Helper functions
   def current_player(self) -> int:
     return self.game.turn
 
@@ -550,7 +520,6 @@ class MainWindow(QtWidgets.QWidget):
     self.turn_label.setText(f"Current player: Player {self.current_player()}")
 
   def refresh_state_plot(self):
-    # Use your existing helper to compute probabilities and plot them
     probs = self.game.get_statevector_data()
     plot_statevector_data(probs, ax=self.state_canvas.ax, fig=self.state_canvas.fig)
 
@@ -579,6 +548,21 @@ class MainWindow(QtWidgets.QWidget):
     self.measure_btn.setToolTip("" if can_measure else
         "Play all cards from both decks to enable measuring.")
     
+  def decks_empty(self) -> bool:
+    return len(self.game.deck_player_one) == 0 and len(self.game.deck_player_two) == 0
+  
+  def lock_after_end(self):
+    # Disable inputs after game end
+    self.play_btn.setEnabled(False)
+    if hasattr(self, "skip_btn"):
+        self.skip_btn.setEnabled(False)
+    if hasattr(self, "measure_btn"):
+        self.measure_btn.setEnabled(False)
+    self.deck_p1.list.setEnabled(False)
+    self.deck_p2.list.setEnabled(False)
+    self.simple_selector_box.setEnabled(False)
+    self.selector_box.setEnabled(False)
+    
   def ensure_distinct_selector(self):
     """
     Keep selector combos distinct for CX/CZ (2), CCX/CCZ (3), and SWAP (2).
@@ -604,13 +588,11 @@ class MainWindow(QtWidgets.QWidget):
         set_idx(self.tgt_combo, (b + 1) % n)
 
     elif title.startswith("CCX") or title.startswith("CCZ"):
-      # Make a, b, c all distinct by greedily bumping duplicates.
       a = self.ctrl1_combo.currentIndex()
       b = self.ctrl2_combo.currentIndex()
       c = self.tgt_combo.currentIndex()
 
       used = set()
-      # order matters: treat ctrl1 fixed, then ctrl2, then target
       for combo, idx in ((self.ctrl1_combo, a), (self.ctrl2_combo, b), (self.tgt_combo, c)):
         cur = idx
         while cur in used and n > len(used):
@@ -631,27 +613,20 @@ class MainWindow(QtWidgets.QWidget):
     row = view.selected_row()
     op = deck[row].operation_name if 0 <= row < len(deck) else None
 
-    # Hide combo selector by default
-    def hide_combo_selector():
-      self.selector_box.setVisible(False)
-      self.lbl_ctrl.setVisible(False);  self.ctrl1_combo.setVisible(False)
-      self.lbl_ctrl2.setVisible(False); self.ctrl2_combo.setVisible(False)
-      self.lbl_tgt.setVisible(False);   self.tgt_combo.setVisible(False)
+    self.selector_box.setVisible(False)
+    self.lbl_ctrl.setVisible(False);  self.ctrl1_combo.setVisible(False)
+    self.lbl_ctrl2.setVisible(False); self.ctrl2_combo.setVisible(False)
+    self.lbl_tgt.setVisible(False);   self.tgt_combo.setVisible(False)
 
-    hide_combo_selector()
-
-    # Also reset label text (in case SWAP renamed them)
     self.lbl_ctrl.setText("Control:")
     self.lbl_tgt.setText("Target:")
 
-    # If nothing selected, show the simple selector
     if not op:
       self.simple_selector_box.setVisible(True)
       return
 
-    # Multi-qubit “control” gates use the combo selector; hide the simple selector to avoid confusion
     if op in ('CX', 'CZ', 'CCX', 'CCZ', 'SWAP'):
-      self.simple_selector_box.setVisible(False)     # Hide checkboxes
+      self.simple_selector_box.setVisible(False)
       n = self.game.num_qubits
 
       def set_distinct_defaults(pairs):
@@ -698,10 +673,9 @@ class MainWindow(QtWidgets.QWidget):
         self.tgt_combo.currentIndexChanged.connect(self.ensure_distinct_selector, UNIQUE)
 
     else:
-      # For 0/1-qubit gates (X, H, S, …), GROVER/DIFFUSION/I, keep the simple selector visible or hide if none needed
       needs = MOVE_TO_NUM_QUBITS.get(op, 0)
       self.selector_box.setVisible(False)
-      self.simple_selector_box.setVisible(needs >= 1)   # Show only if user needs to pick qubits
+      self.simple_selector_box.setVisible(needs >= 1)
 
   # Actions
   def on_play(self):
@@ -717,13 +691,11 @@ class MainWindow(QtWidgets.QWidget):
       self.simple_selector_box.setVisible(False)
     need = MOVE_TO_NUM_QUBITS.get(card.operation_name, 0)
     
-    # Decide how to gather qubits for this gate
     # CX / CZ
     if card.operation_name in ('CX', 'CZ'):
       a = int(self.ctrl1_combo.currentText())
       b = int(self.tgt_combo.currentText())
       if a == b:
-        # Auto-adjust target to a different qubit (wrap-around)
         if self.game.num_qubits > 1:
           b = (a + 1) % self.game.num_qubits
           self.tgt_combo.setCurrentIndex(b)
@@ -744,8 +716,8 @@ class MainWindow(QtWidgets.QWidget):
         if n < 3:
           self.set_status("Not enough qubits for CCX/CCZ.")
           return
-        # Greedily reassign b, then c
-        if b == a: b = (a + 1) % n
+        if b == a: 
+          b = (a + 1) % n
         if c in (a, b): c = (max(a, b) + 1) % n
         self.ctrl2_combo.setCurrentIndex(b)
         self.tgt_combo.setCurrentIndex(c)
@@ -767,7 +739,6 @@ class MainWindow(QtWidgets.QWidget):
       self.set_status(f"SWAP: qubits {a} ↔ {b}")
     
     else:
-      # 0 or 1-qubit gates still use the checkboxes like before
       qs = self.selected_qubits()
       if len(qs) != need:
         self.set_status(f"'{card.operation_name}' needs {need} qubit(s); you selected {len(qs)}.")
@@ -791,22 +762,26 @@ class MainWindow(QtWidgets.QWidget):
     deck.pop(row)
     view.remove_row(row)
 
+    # Update UI
     self.set_status(f"Applied {card.operation_name} on {qs}.")
     self.refresh_state_plot()
-    self.next_turn()
+    
+    # Auto-measure if both players run out of cards
+    if self.decks_empty():
+      self.lock_after_end()
+      self.on_measure()
+    else:
+      self.next_turn()
 
   def on_skip(self):
     self.set_status("Turn ended (no move).")
     self.next_turn()
 
   def on_measure(self):
-    # Blank the statevector plot at the very end if you prefer
+    # Blank the statevector plot at the very end
     self.state_canvas.ax.clear()
     self.state_canvas.fig.canvas.draw_idle()
-
     counts = self.game.measure_output_end_of_game()
-
-    # Plot normalized fractions; red + labels
     plot_counts(counts, ax=self.counts_canvas.ax, fig=self.counts_canvas.fig, normalize=True)
 
     # Score & announce winner
@@ -814,7 +789,7 @@ class MainWindow(QtWidgets.QWidget):
     result = "Game results in a tie." if p1 == p2 else ("Player 1 wins!" if p1 > p2 else "Player 2 wins!")
     self.set_status(f"# of times P1 measured a target: {p1} | # of times P2 measured a target: {p2} → {result}")
 
-    # Clear after ~30 seconds so window remains usable
+    # Clear after ~30 seconds
     self.counts_timer.start(30_000)
 
 
