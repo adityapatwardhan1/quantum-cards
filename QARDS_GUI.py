@@ -1,4 +1,6 @@
 # THIS IS A GUI VERSION, REPLACES CLI INPUTS
+# THIS IS BETTER USE THIS
+
 from __future__ import annotations
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 from qiskit_aer import Aer
