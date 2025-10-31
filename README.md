@@ -1,5 +1,5 @@
 ## QARDS
-A quantum card game
+THE Quantum Card Game
 
 ### Rules
 1. There are 3-5 qubits, starting in a random (possibly entangled) state.
