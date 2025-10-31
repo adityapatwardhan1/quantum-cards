@@ -23,6 +23,12 @@ Card Reference:
 
 Note: Bitstrings follow little-endian order (Qubit 0 is rightmost).
 
+### Requirements
+
+Python 3.10+
+
+Libraries listed in requirements.txt (see below)
+
 ### How to run
 After pulling the repository
 
