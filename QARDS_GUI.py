@@ -8,7 +8,7 @@ import random
 import sys
 
 # Qt + Matplotlib
-from PySide6 import QtCore, QtWidgets
+from PySide6 import QtCore, QtWidgets, QtGui
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox, QMessageBox, QDialogButtonBox, QCheckBox
@@ -17,11 +17,17 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import mplcursors
 
+# Application icon
+ICON_PATH_LIGHT = "qards_icon_light.svg"
+APP_ICON_LIGHT  = QtGui.QIcon(ICON_PATH_LIGHT)
+ICON_PATH_DARK  = "qards_icon_dark.svg"
+APP_ICON_DARK   = QtGui.QIcon(ICON_PATH_DARK)
+
 try:
   UNIQUE = QtCore.Qt.ConnectionType.UniqueConnection
 except AttributeError:
   UNIQUE = QtCore.Qt.UniqueConnection
-  
+
 # User options
 enable_skip = False
 enable_measure = False
@@ -156,30 +162,14 @@ def plot_counts(counts: dict[str, int], ax, fig, thresh_to_plot: float = 0.00, n
   ax.set_xticks(x)
   ax.set_xticklabels(keys, rotation=45, ha='right')
 
-  n_bars = len(bars)
-  if n_bars <= 10:
-      rotation = 0
-      fontsize = 10
-  elif n_bars <= 20:
-      rotation = 45
-      fontsize = 9
-  elif n_bars <= 40:
-      rotation = 60
-      fontsize = 8
-  else:
-      rotation = 75
-      fontsize = 7
-
-  ax.set_xticks(x)
-  ax.set_xticklabels(keys, rotation=rotation, ha='right', fontsize=fontsize)
-
   for rect, v in zip(bars, vals):
-      height = rect.get_height()
-      label = f"{v:.3f}" if normalize else f"{int(v)}"
-      ax.text(rect.get_x() + rect.get_width() / 2, height,
-              label,
-              ha='center', va='bottom', 
-              rotation=rotation, fontsize=fontsize)
+    height = rect.get_height()
+    label = f"{v:.3f}" if normalize else f"{int(v)}"
+    ax.annotate(label,
+                xy=(rect.get_x() + rect.get_width() / 2, height),
+                xytext=(0, 3),
+                textcoords='offset points',
+                ha='center', va='bottom')
 
   fig.canvas.draw_idle()
 
@@ -350,9 +340,10 @@ class Game:
         count_player_two += counts[key]
     return (count_player_one, count_player_two)
 
-  def show_game_rules(self):
+  def show_game_rules(self, parent=None):
     """Show the game rules in a popup message box."""
     rules = f"""
+    <b>QARDS: Quantum Card Game</b><br><br>
     <b>QARDS: The Quantum Card Game</b><br><br>
 
     <b>1.</b> There are <b>{self.num_qubits}</b> qubits, starting in a random (possibly entangled) state.<br>
@@ -494,7 +485,7 @@ class MainWindow(QtWidgets.QWidget):
     self.setWindowTitle("QARDS - GUI")
     self.resize(1300, 820)
 
-    setup_dialog = GameSetupDialog()
+    setup_dialog = GameSetupDialog(self)
     if setup_dialog.exec() == QDialog.Accepted:
         num_qubits, num_cards, num_bitstrings, enable_measure = setup_dialog.get_values()
         if num_bitstrings == 0 or num_bitstrings > int(2 ** (num_qubits - 1)):
@@ -504,7 +495,7 @@ class MainWindow(QtWidgets.QWidget):
 
     self.game = Game(num_qubits, num_cards, num_bitstrings)
     self.enable_measure = enable_measure
-    self.game.show_game_rules()
+    self.game.show_game_rules(parent=self)
 
     # Decks + targets
     left = QtWidgets.QVBoxLayout()
@@ -546,7 +537,7 @@ class MainWindow(QtWidgets.QWidget):
     if (enable_measure):
       row_btns.addWidget(self.measure_btn)
     mid.addLayout(row_btns)
-    
+
     self.selector_box = QtWidgets.QGroupBox("Gate qubit selection")
     sel_lay = QtWidgets.QFormLayout(self.selector_box)
 
@@ -571,7 +562,7 @@ class MainWindow(QtWidgets.QWidget):
     self.lbl_ctrl.setVisible(False);  self.ctrl1_combo.setVisible(False)
     self.lbl_ctrl2.setVisible(False); self.ctrl2_combo.setVisible(False)
     self.lbl_tgt.setVisible(False);   self.tgt_combo.setVisible(False)
-    
+
     mid.addWidget(self.selector_box)
     self.status = QtWidgets.QLabel()
     mid.addWidget(self.status)
@@ -653,17 +644,17 @@ class MainWindow(QtWidgets.QWidget):
     for cb in self.qchecks:
       cb.setChecked(False)
     self.refresh_all()
-    
+
   def update_measure_enabled(self):
     can_measure = (len(self.game.deck_player_one) == 0
                    and len(self.game.deck_player_two) == 0)
     self.measure_btn.setEnabled(can_measure)
     self.measure_btn.setToolTip("" if can_measure else
         "Play all cards from both decks to enable measuring.")
-    
+
   def decks_empty(self) -> bool:
     return len(self.game.deck_player_one) == 0 and len(self.game.deck_player_two) == 0
-  
+
   def lock_after_end(self):
     # Disable inputs after game end
     self.play_btn.setEnabled(False)
@@ -675,7 +666,7 @@ class MainWindow(QtWidgets.QWidget):
     self.deck_p2.list.setEnabled(False)
     self.simple_selector_box.setEnabled(False)
     self.selector_box.setEnabled(False)
-    
+
   def ensure_distinct_selector(self):
     """
     Keep selector combos distinct for CX/CZ (2), CCX/CCZ (3), and SWAP (2).
@@ -719,7 +710,7 @@ class MainWindow(QtWidgets.QWidget):
       b = self.tgt_combo.currentIndex()
       if a == b:
         set_idx(self.tgt_combo, (b + 1) % n)
-    
+
   def on_card_highlight(self, which_deck: int):
     deck = self.game.deck_player_one if which_deck == 1 else self.game.deck_player_two
     view = self.deck_p1 if which_deck == 1 else self.deck_p2
@@ -803,7 +794,7 @@ class MainWindow(QtWidgets.QWidget):
     if card.operation_name in ('CX', 'CZ', 'CCX', 'CCZ', 'SWAP'):
       self.simple_selector_box.setVisible(False)
     need = MOVE_TO_NUM_QUBITS.get(card.operation_name, 0)
-    
+
     # CX / CZ
     if card.operation_name in ('CX', 'CZ'):
       a = int(self.ctrl1_combo.currentText())
@@ -850,7 +841,7 @@ class MainWindow(QtWidgets.QWidget):
           return
       qs = [a, b]
       self.set_status(f"SWAP: qubits {a} ↔ {b}")
-    
+
     else:
       qs = self.selected_qubits()
       if len(qs) != need:
@@ -878,7 +869,7 @@ class MainWindow(QtWidgets.QWidget):
     # Update UI
     self.set_status(f"Applied {card.operation_name} on {qs}.")
     self.refresh_state_plot()
-    
+
     # Auto-measure if both players run out of cards
     if self.decks_empty():
       self.lock_after_end()
@@ -909,6 +900,11 @@ class MainWindow(QtWidgets.QWidget):
 if __name__ == '__main__':
   # Start Qt app
   app = QtWidgets.QApplication(sys.argv)
+
+  # Set app icon based on light/dark mode
+  pal = app.palette()
+  is_dark = pal.color(QtGui.QPalette.Window).valueF() < 0.5
+  app.setWindowIcon(APP_ICON_DARK if is_dark else APP_ICON_LIGHT)
+
   w = MainWindow()
   w.show()
-  sys.exit(app.exec())
