@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 )
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+import mplcursors
 
 # Application icon
 ICON_PATH_LIGHT = "qards_icon_light.svg"
@@ -114,17 +115,12 @@ def plot_statevector_data(statevector_dict: dict[str, float], ax, fig) -> None:
   values = [statevector_dict[k] for k in keys]
 
   x = np.arange(len(keys))
-  ax.bar(x, values, width=0.5)
+  bars = ax.bar(x, values, width=0.5)
   ax.set_xticks(x)
   ax.set_xticklabels(keys, rotation=45)
   ax.set_ylabel('|Probability = Amplitude|^2')
   ax.set_xlabel('Measurement Outcome')
   ax.set_ylim(0, 1)
-
-  # Small value labels
-  for xi, v in zip(x, values):
-    ax.annotate(f"{v:.3f}", (xi, v), xytext=(0, 3),
-                textcoords='offset points', ha='center', va='bottom')
 
   fig.canvas.draw_idle()
 
