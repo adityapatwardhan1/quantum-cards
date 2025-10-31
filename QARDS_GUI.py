@@ -8,7 +8,7 @@ import random
 import sys
 
 # Qt + Matplotlib
-from PySide6 import QtCore, QtWidgets
+from PySide6 import QtCore, QtWidgets, QtGui
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox, QMessageBox, QDialogButtonBox, QCheckBox
@@ -24,6 +24,12 @@ except AttributeError:
 # User options
 enable_skip = False
 enable_measure = False
+
+# Application icons
+ICON_PATH_LIGHT = "qards_icon_light.svg"
+APP_ICON_LIGHT  = QtGui.QIcon(ICON_PATH_LIGHT)
+ICON_PATH_DARK  = "qards_icon_dark.svg"
+APP_ICON_DARK   = QtGui.QIcon(ICON_PATH_DARK)
 
 """
 Quantum cards with measurement
@@ -908,6 +914,9 @@ class MainWindow(QtWidgets.QWidget):
 if __name__ == '__main__':
   # Start Qt app
   app = QtWidgets.QApplication(sys.argv)
+  pal = app.palette()
+  is_dark = pal.color(QtGui.QPalette.Window).valueF() < 0.5
+  app.setWindowIcon(APP_ICON_DARK if is_dark else APP_ICON_LIGHT)
   w = MainWindow()
   w.show()
   sys.exit(app.exec())
