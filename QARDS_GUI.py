@@ -28,9 +28,6 @@ try:
 except AttributeError:
   UNIQUE = QtCore.Qt.UniqueConnection
 
-# User options
-enable_skip = False
-enable_measure = False
 
 """
 Quantum cards with measurement
