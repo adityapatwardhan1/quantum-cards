@@ -156,14 +156,30 @@ def plot_counts(counts: dict[str, int], ax, fig, thresh_to_plot: float = 0.00, n
   ax.set_xticks(x)
   ax.set_xticklabels(keys, rotation=45, ha='right')
 
+  n_bars = len(bars)
+  if n_bars <= 10:
+      rotation = 0
+      fontsize = 10
+  elif n_bars <= 20:
+      rotation = 45
+      fontsize = 9
+  elif n_bars <= 40:
+      rotation = 60
+      fontsize = 8
+  else:
+      rotation = 75
+      fontsize = 7
+
+  ax.set_xticks(x)
+  ax.set_xticklabels(keys, rotation=rotation, ha='right', fontsize=fontsize)
+
   for rect, v in zip(bars, vals):
-    height = rect.get_height()
-    label = f"{v:.3f}" if normalize else f"{int(v)}"
-    ax.annotate(label,
-                xy=(rect.get_x() + rect.get_width() / 2, height),
-                xytext=(0, 3),
-                textcoords='offset points',
-                ha='center', va='bottom')
+      height = rect.get_height()
+      label = f"{v:.3f}" if normalize else f"{int(v)}"
+      ax.text(rect.get_x() + rect.get_width() / 2, height,
+              label,
+              ha='center', va='bottom', 
+              rotation=rotation, fontsize=fontsize)
 
   fig.canvas.draw_idle()
 
