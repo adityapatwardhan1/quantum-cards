@@ -8,7 +8,7 @@ import random
 import sys
 
 # Qt + Matplotlib
-from PySide6 import QtCore, QtWidgets, QtGui
+from PySide6 import QtCore, QtWidgets
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox, QMessageBox, QDialogButtonBox, QCheckBox
@@ -16,12 +16,6 @@ from PySide6.QtWidgets import (
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import mplcursors
-
-# Application icon
-ICON_PATH_LIGHT = "qards_icon_light.svg"
-APP_ICON_LIGHT  = QtGui.QIcon(ICON_PATH_LIGHT)
-ICON_PATH_DARK  = "qards_icon_dark.svg"
-APP_ICON_DARK   = QtGui.QIcon(ICON_PATH_DARK)
 
 try:
   UNIQUE = QtCore.Qt.ConnectionType.UniqueConnection
@@ -162,14 +156,30 @@ def plot_counts(counts: dict[str, int], ax, fig, thresh_to_plot: float = 0.00, n
   ax.set_xticks(x)
   ax.set_xticklabels(keys, rotation=45, ha='right')
 
+  n_bars = len(bars)
+  if n_bars <= 10:
+      rotation = 0
+      fontsize = 10
+  elif n_bars <= 20:
+      rotation = 45
+      fontsize = 9
+  elif n_bars <= 40:
+      rotation = 60
+      fontsize = 8
+  else:
+      rotation = 75
+      fontsize = 7
+
+  ax.set_xticks(x)
+  ax.set_xticklabels(keys, rotation=rotation, ha='right', fontsize=fontsize)
+
   for rect, v in zip(bars, vals):
-    height = rect.get_height()
-    label = f"{v:.3f}" if normalize else f"{int(v)}"
-    ax.annotate(label,
-                xy=(rect.get_x() + rect.get_width() / 2, height),
-                xytext=(0, 3),
-                textcoords='offset points',
-                ha='center', va='bottom')
+      height = rect.get_height()
+      label = f"{v:.3f}" if normalize else f"{int(v)}"
+      ax.text(rect.get_x() + rect.get_width() / 2, height,
+              label,
+              ha='center', va='bottom', 
+              rotation=rotation, fontsize=fontsize)
 
   fig.canvas.draw_idle()
 
@@ -340,7 +350,7 @@ class Game:
         count_player_two += counts[key]
     return (count_player_one, count_player_two)
 
-  def show_game_rules(self, parent=None):
+  def show_game_rules(self):
     """Show the game rules in a popup message box."""
     rules = f"""
     <b>QARDS: The Quantum Card Game</b><br><br>
@@ -484,7 +494,7 @@ class MainWindow(QtWidgets.QWidget):
     self.setWindowTitle("QARDS - GUI")
     self.resize(1300, 820)
 
-    setup_dialog = GameSetupDialog(self)
+    setup_dialog = GameSetupDialog()
     if setup_dialog.exec() == QDialog.Accepted:
         num_qubits, num_cards, num_bitstrings, enable_measure = setup_dialog.get_values()
         if num_bitstrings == 0 or num_bitstrings > int(2 ** (num_qubits - 1)):
@@ -494,7 +504,7 @@ class MainWindow(QtWidgets.QWidget):
 
     self.game = Game(num_qubits, num_cards, num_bitstrings)
     self.enable_measure = enable_measure
-    self.game.show_game_rules(parent=self)
+    self.game.show_game_rules()
 
     # Decks + targets
     left = QtWidgets.QVBoxLayout()
@@ -899,12 +909,6 @@ class MainWindow(QtWidgets.QWidget):
 if __name__ == '__main__':
   # Start Qt app
   app = QtWidgets.QApplication(sys.argv)
-  
-  # Set app icon based on light/dark mode
-  pal = app.palette()
-  is_dark = pal.color(QtGui.QPalette.Window).valueF() < 0.5
-  app.setWindowIcon(APP_ICON_DARK if is_dark else APP_ICON_LIGHT)
-  
   w = MainWindow()
   w.show()
   sys.exit(app.exec())
