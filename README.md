@@ -30,7 +30,7 @@ Python 3.10+
 Libraries listed in requirements.txt (see below)
 
 ### How to run
-After pulling the repository
+After pulling the repository:
 
 First, create a virtual environment:
 
