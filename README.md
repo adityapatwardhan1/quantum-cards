@@ -16,7 +16,7 @@ Card Reference:
     - GROVER: Runs a Grover iteration amplifying a bitstring chosen by the player.
     - REVERSE: Undoes the previous move (restores the prior circuit).
 
-    Note: Bitstrings follow little-endian order (Qubit 0 is rightmost).
+Note: Bitstrings follow little-endian order (Qubit 0 is rightmost).
 
 ### How to run
 After pulling the repository
