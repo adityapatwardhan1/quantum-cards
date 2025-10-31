@@ -343,7 +343,7 @@ class Game:
   def show_game_rules(self, parent=None):
     """Show the game rules in a popup message box."""
     rules = f"""
-    <b>QARDS: Quantum Card Game</b><br><br>
+    <b>QARDS: The Quantum Card Game</b><br><br>
 
     <b>1.</b> There are <b>{self.num_qubits}</b> qubits, starting in a random (possibly entangled) state.<br>
     <b>2.</b> Each player has <b>{self.num_target_bitstrings}</b> target bitstrings of length {self.num_qubits}.

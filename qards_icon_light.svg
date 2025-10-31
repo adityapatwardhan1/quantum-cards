@@ -5,45 +5,38 @@
       <stop offset="0%" stop-color="#ffffff"/>
       <stop offset="100%" stop-color="#f2f4f8"/>
     </linearGradient>
-    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.18"/>
-    </filter>
-    <style>
-      .card{fill:url(#g);stroke:#0f172a;stroke-width:24;filter:url(#shadow)}
-      .pip{fill:#e11d48}
-      .wire{stroke:#0f172a;stroke-width:18;stroke-linecap:round}
-      .gate{fill:#0ea5e9;stroke:#0f172a;stroke-width:18}
-      .dot{fill:#0f172a}
-      .target{fill:none;stroke:#0f172a;stroke-width:18}
-      .plus{stroke:#0f172a;stroke-width:18;stroke-linecap:round}
-    </style>
   </defs>
 
-  <!-- Card shape -->
-  <rect x="160" y="96" rx="64" ry="64" width="704" height="832" class="card"/>
+  <!-- Card -->
+  <rect x="160" y="96" rx="64" ry="64" width="704" height="832"
+        fill="url(#g)" stroke="#0f172a" stroke-width="24"/>
 
-  <!-- Corner pips (hearts) -->
-  <path class="pip" d="M230 190c0-28 22-50 50-50c18 0 34 9 43 23c9-14 25-23 43-23c28 0 50 22 50 50c0 56-93 96-93 96s-93-40-93-96z"/>
+  <!-- Corner pips -->
+  <path d="M230 190c0-28 22-50 50-50c18 0 34 9 43 23c9-14 25-23 43-23c28 0 50 22 50 50c0 56-93 96-93 96s-93-40-93-96z"
+        fill="#e11d48"/>
   <g transform="rotate(180 832 832) translate(768 768)">
-    <path class="pip" d="M64 64c0-28 22-50 50-50c18 0 34 9 43 23c9-14 25-23 43-23c28 0 50 22 50 50c0 56-93 96-93 96s-93-40-93-96z"/>
+    <path d="M64 64c0-28 22-50 50-50c18 0 34 9 43 23c9-14 25-23 43-23c28 0 50 22 50 50c0 56-93 96-93 96s-93-40-93-96z"
+          fill="#e11d48"/>
   </g>
 
-  <!-- Quantum circuit: three wires -->
-  <line x1="240" y1="380" x2="784" y2="380" class="wire"/>
-  <line x1="240" y1="512" x2="784" y2="512" class="wire"/>
-  <line x1="240" y1="644" x2="784" y2="644" class="wire"/>
+  <!-- Three wires -->
+  <line x1="240" y1="380" x2="784" y2="380" stroke="#0f172a" stroke-width="18" stroke-linecap="round" fill="none"/>
+  <line x1="240" y1="512" x2="784" y2="512" stroke="#0f172a" stroke-width="18" stroke-linecap="round" fill="none"/>
+  <line x1="240" y1="644" x2="784" y2="644" stroke="#0f172a" stroke-width="18" stroke-linecap="round" fill="none"/>
 
-  <!-- A single-qubit gate (like H) on the top wire -->
-  <rect x="328" y="332" width="96" height="96" rx="12" class="gate"/>
-  <!-- 'H' glyph as simple lines (avoid font dependency) -->
-  <line x1="352" y1="356" x2="352" y2="404" class="plus"/>
-  <line x1="400" y1="356" x2="400" y2="404" class="plus"/>
-  <line x1="352" y1="380" x2="400" y2="380" class="plus"/>
+  <!-- Single-qubit gate box -->
+  <rect x="328" y="332" width="96" height="96" rx="12"
+        fill="#0ea5e9" stroke="#0f172a" stroke-width="18"/>
 
-  <!-- Control dot on middle wire and target on bottom wire (CNOT) -->
-  <circle cx="512" cy="512" r="16" class="dot"/>
-  <line x1="512" y1="512" x2="512" y2="644" class="wire"/>
-  <circle cx="512" cy="644" r="36" class="target"/>
-  <line x1="512" y1="620" x2="512" y2="668" class="plus"/>
-  <line x1="488" y1="644" x2="536" y2="644" class="plus"/>
+  <!-- 'H' glyph (lines) -->
+  <line x1="352" y1="356" x2="352" y2="404" stroke="#0f172a" stroke-width="18" stroke-linecap="round"/>
+  <line x1="400" y1="356" x2="400" y2="404" stroke="#0f172a" stroke-width="18" stroke-linecap="round"/>
+  <line x1="352" y1="380" x2="400" y2="380" stroke="#0f172a" stroke-width="18" stroke-linecap="round"/>
+
+  <!-- CNOT: control dot and target -->
+  <circle cx="512" cy="512" r="16" fill="#0f172a"/>
+  <line x1="512" y1="512" x2="512" y2="644" stroke="#0f172a" stroke-width="18" stroke-linecap="round" fill="none"/>
+  <circle cx="512" cy="644" r="36" fill="none" stroke="#0f172a" stroke-width="18"/>
+  <line x1="512" y1="620" x2="512" y2="668" stroke="#0f172a" stroke-width="18" stroke-linecap="round"/>
+  <line x1="488" y1="644" x2="536" y2="644" stroke="#0f172a" stroke-width="18" stroke-linecap="round"/>
 </svg>

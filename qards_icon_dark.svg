@@ -5,35 +5,38 @@
       <stop offset="0%" stop-color="#0b1220"/>
       <stop offset="100%" stop-color="#0b1328"/>
     </linearGradient>
-    <filter id="shadow2" x="-50%" y="-50%" width="200%" height="200%">
-      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45"/>
-    </filter>
-    <style>
-      .card{fill:url(#g2);stroke:#e5e7eb;stroke-width:24;filter:url(#shadow2)}
-      .pip{fill:#f43f5e}
-      .wire{stroke:#e5e7eb;stroke-width:18;stroke-linecap:round}
-      .gate{fill:#22d3ee;stroke:#e5e7eb;stroke-width:18}
-      .dot{fill:#e5e7eb}
-      .target{fill:none;stroke:#e5e7eb;stroke-width:18}
-      .plus{stroke:#e5e7eb;stroke-width:18;stroke-linecap:round}
-    </style>
   </defs>
 
-  <rect x="160" y="96" rx="64" ry="64" width="704" height="832" class="card"/>
-  <path class="pip" d="M230 190c0-28 22-50 50-50c18 0 34 9 43 23c9-14 25-23 43-23c28 0 50 22 50 50c0 56-93 96-93 96s-93-40-93-96z"/>
+  <!-- Card -->
+  <rect x="160" y="96" rx="64" ry="64" width="704" height="832"
+        fill="url(#g2)" stroke="#e5e7eb" stroke-width="24"/>
+
+  <!-- Corner pips -->
+  <path d="M230 190c0-28 22-50 50-50c18 0 34 9 43 23c9-14 25-23 43-23c28 0 50 22 50 50c0 56-93 96-93 96s-93-40-93-96z"
+        fill="#f43f5e"/>
   <g transform="rotate(180 832 832) translate(768 768)">
-    <path class="pip" d="M64 64c0-28 22-50 50-50c18 0 34 9 43 23c9-14 25-23 43-23c28 0 50 22 50 50c0 56-93 96-93 96s-93-40-93-96z"/>
+    <path d="M64 64c0-28 22-50 50-50c18 0 34 9 43 23c9-14 25-23 43-23c28 0 50 22 50 50c0 56-93 96-93 96s-93-40-93-96z"
+          fill="#f43f5e"/>
   </g>
-  <line x1="240" y1="380" x2="784" y2="380" class="wire"/>
-  <line x1="240" y1="512" x2="784" y2="512" class="wire"/>
-  <line x1="240" y1="644" x2="784" y2="644" class="wire"/>
-  <rect x="328" y="332" width="96" height="96" rx="12" class="gate"/>
-  <line x1="352" y1="356" x2="352" y2="404" class="plus"/>
-  <line x1="400" y1="356" x2="400" y2="404" class="plus"/>
-  <line x1="352" y1="380" x2="400" y2="380" class="plus"/>
-  <circle cx="512" cy="512" r="16" class="dot"/>
-  <line x1="512" y1="512" x2="512" y2="644" class="wire"/>
-  <circle cx="512" cy="644" r="36" class="target"/>
-  <line x1="512" y1="620" x2="512" y2="668" class="plus"/>
-  <line x1="488" y1="644" x2="536" y2="644" class="plus"/>
+
+  <!-- Three wires -->
+  <line x1="240" y1="380" x2="784" y2="380" stroke="#e5e7eb" stroke-width="18" stroke-linecap="round" fill="none"/>
+  <line x1="240" y1="512" x2="784" y2="512" stroke="#e5e7eb" stroke-width="18" stroke-linecap="round" fill="none"/>
+  <line x1="240" y1="644" x2="784" y2="644" stroke="#e5e7eb" stroke-width="18" stroke-linecap="round" fill="none"/>
+
+  <!-- Single-qubit gate box -->
+  <rect x="328" y="332" width="96" height="96" rx="12"
+        fill="#22d3ee" stroke="#e5e7eb" stroke-width="18"/>
+
+  <!-- 'H' glyph (lines) -->
+  <line x1="352" y1="356" x2="352" y2="404" stroke="#e5e7eb" stroke-width="18" stroke-linecap="round"/>
+  <line x1="400" y1="356" x2="400" y2="404" stroke="#e5e7eb" stroke-width="18" stroke-linecap="round"/>
+  <line x1="352" y1="380" x2="400" y2="380" stroke="#e5e7eb" stroke-width="18" stroke-linecap="round"/>
+
+  <!-- CNOT: control dot and target -->
+  <circle cx="512" cy="512" r="16" fill="#e5e7eb"/>
+  <line x1="512" y1="512" x2="512" y2="644" stroke="#e5e7eb" stroke-width="18" stroke-linecap="round" fill="none"/>
+  <circle cx="512" cy="644" r="36" fill="none" stroke="#e5e7eb" stroke-width="18"/>
+  <line x1="512" y1="620" x2="512" y2="668" stroke="#e5e7eb" stroke-width="18" stroke-linecap="round"/>
+  <line x1="488" y1="644" x2="536" y2="644" stroke="#e5e7eb" stroke-width="18" stroke-linecap="round"/>
 </svg>
