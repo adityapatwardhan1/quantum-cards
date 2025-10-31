@@ -1,4 +1,6 @@
 # THIS IS A GUI VERSION, REPLACES CLI INPUTS
+# THIS IS BETTER USE THIS
+
 from __future__ import annotations
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 from qiskit_aer import Aer
@@ -20,10 +22,6 @@ try:
   UNIQUE = QtCore.Qt.ConnectionType.UniqueConnection
 except AttributeError:
   UNIQUE = QtCore.Qt.UniqueConnection
-  
-# User options
-enable_skip = False
-enable_measure = False
 
 # Application icons
 ICON_PATH_LIGHT = "qards_icon_light.svg"
@@ -117,7 +115,7 @@ def plot_statevector_data(statevector_dict: dict[str, float], ax, fig) -> None:
   bars = ax.bar(x, values, width=0.5)
   ax.set_xticks(x)
   ax.set_xticklabels(keys, rotation=45)
-  ax.set_ylabel('|Probability = Amplitude|^2')
+  ax.set_ylabel('Probability = |Amplitude|^2')
   ax.set_xlabel('Measurement Outcome')
   ax.set_ylim(0, 1)
 
@@ -358,7 +356,7 @@ class Game:
   def show_game_rules(self):
     """Show the game rules in a popup message box."""
     rules = f"""
-    <b>QARDS: Quantum Card Game</b><br><br>
+    <b>QARDS: The Quantum Card Game</b><br><br>
 
     <b>1.</b> There are <b>{self.num_qubits}</b> qubits, starting in a random (possibly entangled) state.<br>
     <b>2.</b> Each player has <b>{self.num_target_bitstrings}</b> target bitstrings of length {self.num_qubits}.
@@ -543,12 +541,9 @@ class MainWindow(QtWidgets.QWidget):
     # Buttons
     row_btns = QtWidgets.QHBoxLayout()
     self.play_btn = QtWidgets.QPushButton("Play Selected Card")
-    row_btns.addWidget(self.play_btn)    
-    self.skip_btn = QtWidgets.QPushButton("End Turn (No Move)")
-    if (enable_skip):
-      row_btns.addWidget(self.skip_btn)
+    row_btns.addWidget(self.play_btn)
     self.measure_btn = QtWidgets.QPushButton("Measure / End Game")
-    if (enable_measure):
+    if (self.enable_measure):
       row_btns.addWidget(self.measure_btn)
     mid.addLayout(row_btns)
     
@@ -596,7 +591,6 @@ class MainWindow(QtWidgets.QWidget):
     root.addLayout(right, 2)
 
     self.play_btn.clicked.connect(self.on_play)
-    self.skip_btn.clicked.connect(self.on_skip)
     self.measure_btn.clicked.connect(self.on_measure)    
     self.deck_p1.selectionChanged.connect(lambda _: self.on_card_highlight(1))
     self.deck_p2.selectionChanged.connect(lambda _: self.on_card_highlight(2))
@@ -672,8 +666,6 @@ class MainWindow(QtWidgets.QWidget):
   def lock_after_end(self):
     # Disable inputs after game end
     self.play_btn.setEnabled(False)
-    if hasattr(self, "skip_btn"):
-        self.skip_btn.setEnabled(False)
     if hasattr(self, "measure_btn"):
         self.measure_btn.setEnabled(False)
     self.deck_p1.list.setEnabled(False)
@@ -891,16 +883,12 @@ class MainWindow(QtWidgets.QWidget):
     else:
       self.next_turn()
 
-  def on_skip(self):
-    self.set_status("Turn ended (no move).")
-    self.next_turn()
-
   def on_measure(self):
     # Blank the statevector plot at the very end
     self.state_canvas.ax.clear()
     self.state_canvas.fig.canvas.draw_idle()
     counts = self.game.measure_output_end_of_game()
-    plot_counts(counts, ax=self.counts_canvas.ax, fig=self.counts_canvas.fig, normalize=True)
+    plot_counts(counts, ax=self.counts_canvas.ax, fig=self.counts_canvas.fig, normalize=False)
 
     # Score & announce winner
     p1, p2 = self.game.get_target_bitstring_counts(counts)
