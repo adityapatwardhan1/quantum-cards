@@ -9,16 +9,17 @@ A quantum card game
 4. Players alternate turns playing cards. When both decks are empty, the qubits are measured, and the player whose bitstrings appear most often wins.
 
 Card Reference:
-    - X, Y, Z, H, CX, CCX, CZ, CCZ, S, T, S_dag, T_dag, I, SWAP:
-        Apply the corresponding quantum gate on chosen qubit(s).
 
-    - DIFFUSION: Grover diffusion operator.
+- X, Y, Z, H, CX, CCX, CZ, CCZ, S, T, S_dag, T_dag, I, SWAP:
+    Apply the corresponding quantum gate on chosen qubit(s).
 
-    - RESET: Resets a qubit to |0⟩ (randomly flips to |1⟩ half the time).
+- DIFFUSION: Grover diffusion operator.
 
-    - GROVER: Runs a Grover iteration amplifying a bitstring chosen by the player.
-    
-    - REVERSE: Undoes the previous move (restores the prior circuit).
+- RESET: Resets a qubit to |0⟩ (randomly flips to |1⟩ half the time).
+
+- GROVER: Runs a Grover iteration amplifying a bitstring chosen by the player.
+
+- REVERSE: Undoes the previous move (restores the prior circuit).
 
 Note: Bitstrings follow little-endian order (Qubit 0 is rightmost).
 
