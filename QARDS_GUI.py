@@ -1,5 +1,5 @@
 # THIS IS A GUI VERSION, REPLACES CLI INPUTS
-# THIS IS BETTER USE THIS
+# THIS IS BETTER USE THIS (ESP FOR FALL FEST)
 
 from __future__ import annotations
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
@@ -356,7 +356,7 @@ class Game:
   def show_game_rules(self):
     """Show the game rules in a popup message box."""
     rules = f"""
-    <b>QARDS: The Quantum Card Game</b><br><br>
+    <b>QARDS: THE Quantum Card Game</b><br><br>
 
     <b>1.</b> There are <b>{self.num_qubits}</b> qubits, starting in a random (possibly entangled) state.<br>
     <b>2.</b> Each player has <b>{self.num_target_bitstrings}</b> target bitstrings of length {self.num_qubits}.
