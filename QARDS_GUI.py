@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 )
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+import mplcursors
 
 try:
   UNIQUE = QtCore.Qt.ConnectionType.UniqueConnection
@@ -114,6 +115,8 @@ def plot_statevector_data(statevector_dict: dict[str, float], ax, fig) -> None:
   ax.set_ylabel('|Probability = Amplitude|^2')
   ax.set_xlabel('Measurement Outcome')
   ax.set_ylim(0, 1)
+
+  fig.canvas.draw_idle()
 
 
 def plot_counts(counts: dict[str, int], ax, fig, thresh_to_plot: float = 0.00, normalize: bool = False) -> None:
