@@ -7,8 +7,12 @@ import numpy as np
 import random
 import sys
 
-# Qt + Matplotlib canvas for embedding plots in the GUI window
+# Qt + Matplotlib
 from PySide6 import QtCore, QtWidgets
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox, QMessageBox, QDialogButtonBox, QCheckBox
+)
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
@@ -16,11 +20,14 @@ try:
   UNIQUE = QtCore.Qt.ConnectionType.UniqueConnection
 except AttributeError:
   UNIQUE = QtCore.Qt.UniqueConnection
-
+  
+# User options
+enable_skip = False
+enable_measure = False
 
 """
 Quantum cards with measurement
-1. There are n (3 to 6, inclusive) qubits, starting in a random state
+1. There are n (3 to 7, inclusive) qubits, starting in a random state
 2. Each player is assigned bitstrings of length n, which, if it is a measurement
 outcome, earns them points.
 Player with the most points after running 1024 shots of measurements wins.
@@ -45,7 +52,6 @@ one can use CNOT to entangle the 2 leftmost qubits.
 of the game plausibly
 """
 
-# Cards and weights – unchanged
 MOVE_NAMES = [
     'X', 'Y', 'Z', 'H', 'CX', 'CCX', 'I', 'S', 'S_dag', 'T', 'T_dag',
     'SWAP', 'DIFFUSION', 'CZ', 'CCZ', 'RESET', 'GROVER', 'REVERSE'
@@ -91,61 +97,49 @@ def generate_random_deck(num_cards, num_qubits_in_game):
   return cards
 
 
-def plot_statevector_data(statevector_dict: dict[str, float], ax, fig,
-                          max_labels: int = 32, annotate_top: int = 8) -> None:
+def plot_statevector_data(statevector_dict: dict[str, float], ax, fig) -> None:
   """
   Plots a statevector probability dict onto the provided Matplotlib axes.
   Keys are bitstrings; values are probabilities.
   """
   ax.clear()
 
-  # Sort by bitstrings
-  items = sorted(statevector_dict.items(), key=lambda kv: int(kv[0], 2))
-  keys  = [k for k, _ in items]
-  vals  = [v for _, v in items]
+  keys = sorted(statevector_dict.keys())
+  values = [statevector_dict[k] for k in keys]
 
   x = np.arange(len(keys))
-  bars = ax.bar(x, vals, width=0.5)
-
-  # Thin tick labels
-  if len(keys) > 0:
-    step = max(1, int(np.ceil(len(keys) / max_labels)))
-    shown_idx = np.arange(0, len(keys), step)
-    ax.set_xticks(shown_idx)
-    ax.set_xticklabels([keys[i] for i in shown_idx], rotation=90, ha='center')
-    ax.tick_params(axis='x', labelsize=8)
-  ax.margins(x=0.01)
-
-  ax.set_ylabel(r'|Probability Amplitude|$^2$')
+  ax.bar(x, values, width=0.5)
+  ax.set_xticks(x)
+  ax.set_xticklabels(keys, rotation=45)
+  ax.set_ylabel('|Probability = Amplitude|^2')
   ax.set_xlabel('Measurement Outcome')
   ax.set_ylim(0, 1)
 
-  # Annotate top bars
-  if annotate_top > 0:
-    top_idx = np.argsort(vals)[-annotate_top:]
-    for i in top_idx:
-      h = bars[i].get_height()
-      if h > 0:
-        ax.annotate(f"{vals[i]:.3f}",
-                    (bars[i].get_x() + bars[i].get_width()/2, h),
-                    xytext=(0, 3), textcoords='offset points',
-                    ha='center', va='bottom')
+  # Small value labels
+  for xi, v in zip(x, values):
+    ax.annotate(f"{v:.3f}", (xi, v), xytext=(0, 3),
+                textcoords='offset points', ha='center', va='bottom')
 
   fig.canvas.draw_idle()
 
 
-def plot_counts(counts: dict[str, int], ax, fig,
-                normalize: bool = False, max_labels: int = 32, annotate_top: int = 10) -> None:
+def plot_counts(counts: dict[str, int], ax, fig, thresh_to_plot: float = 0.00, normalize: bool = False) -> None:
+  """
+  Plots measurement counts onto the provided Matplotlib axes.
+  If normalize=True, values are fractions of total shots.
+  """
   total = sum(counts.values()) if counts else 0
   if total == 0:
-    ax.clear(); ax.set_title('No counts to plot'); fig.canvas.draw_idle(); return
+    ax.clear()
+    ax.set_title('No counts to plot')
+    fig.canvas.draw_idle()
+    return
 
-  # Sort by bitstrings
-  items = counts.items()
+  items = [(k, (v/total) if normalize else v) for k, v in counts.items()]
   if normalize:
-    items = [(k, v / total) for k, v in items]
-  items = sorted(items, key=lambda kv: int(kv[0], 2))
+    items = [(k, v) for k, v in items if v >= thresh_to_plot]
 
+  items.sort(key=lambda kv: int(kv[0], 2))
   keys = [k for k, _ in items]
   vals = [v for _, v in items]
 
@@ -154,29 +148,26 @@ def plot_counts(counts: dict[str, int], ax, fig,
   bars = ax.bar(x, vals, width=0.5)
 
   ax.set_xlabel('Measurement Outcome')
-  ax.set_ylabel('Fraction of shots' if normalize else 'Counts')
-  ymax = max(vals) if vals else 1
-  ax.set_ylim(0, max(1.0 if normalize else ymax * 1.15, ymax * 1.05))
-  ax.margins(x=0.01)
+  if normalize:
+    ax.set_ylabel('Fraction of shots')
+    ymax = max(vals) if vals else 1
+    ax.set_ylim(0, max(1.0, ymax * 1.15))
+  else:
+    ax.set_ylabel('Counts')
+    ymax = max(vals) if vals else 1
+    ax.set_ylim(0, ymax * 1.15)
 
-  # Thin tick labels
-  if len(keys) > 0:
-    step = max(1, int(np.ceil(len(keys) / max_labels)))
-    shown_idx = np.arange(0, len(keys), step)
-    ax.set_xticks(shown_idx)
-    ax.set_xticklabels([keys[i] for i in shown_idx], rotation=90, ha='center')
-    ax.tick_params(axis='x', labelsize=8)
+  ax.set_xticks(x)
+  ax.set_xticklabels(keys, rotation=45, ha='right')
 
-  # Annotate top bars
-  if annotate_top > 0:
-    top_idx = np.argsort(vals)[-annotate_top:]
-    for i in top_idx:
-      h = bars[i].get_height()
-      label = f"{vals[i]:.3f}" if normalize else f"{int(vals[i])}"
-      ax.annotate(label,
-                  (bars[i].get_x() + bars[i].get_width()/2, h),
-                  xytext=(0, 3), textcoords="offset points",
-                  ha="center", va="bottom")
+  for rect, v in zip(bars, vals):
+    height = rect.get_height()
+    label = f"{v:.3f}" if normalize else f"{int(v)}"
+    ax.annotate(label,
+                xy=(rect.get_x() + rect.get_width() / 2, height),
+                xytext=(0, 3),
+                textcoords='offset points',
+                ha='center', va='bottom')
 
   fig.canvas.draw_idle()
 
@@ -347,68 +338,41 @@ class Game:
         count_player_two += counts[key]
     return (count_player_one, count_player_two)
 
+  def show_game_rules(self):
+    """Show the game rules in a popup message box."""
+    rules = f"""
+    <b>QARDS: Quantum Card Game</b><br><br>
 
-# Setup dialog for game parameters
-class SetupDialog(QtWidgets.QDialog):
-  def __init__(self, parent=None):
-    super().__init__(parent)
-    self.setWindowTitle("QARDS - New Game")
-    self.setModal(True)
+    <b>1.</b> There are <b>{self.num_qubits}</b> qubits, starting in a random (possibly entangled) state.<br>
+    <b>2.</b> Each player has <b>{self.num_target_bitstrings}</b> target bitstrings of length {self.num_qubits}.
+    If one of these is measured, that player earns a point.<br>
+    <b>3.</b> Each player has <b>{self.num_cards_per_player}</b> cards that apply quantum operations.<br>
+    <b>4.</b> Players alternate turns playing cards. When both decks are empty, the qubits are measured, and the player whose bitstrings appear most often wins.<br><br>
 
-    form = QtWidgets.QFormLayout(self)
+    <b>Card Reference:</b><br>
+    - X, Y, Z, H, CX, CCX, CZ, CCZ, S, T, S_dag, T_dag, I, SWAP:<br>
+      Apply the corresponding quantum gate on chosen qubit(s).<br>
+    - DIFFUSION: Grover diffusion operator.<br>
+    - RESET: Resets a qubit to |0⟩ (randomly flips to |1⟩ half the time).<br>
+    - GROVER: Runs a Grover iteration amplifying a bitstring chosen by the player.<br>
+    - REVERSE: Undoes the previous move (restores the prior circuit).<br><br>
 
-    # Qubits (3-6)
-    self.spin_qubits = QtWidgets.QSpinBox()
-    self.spin_qubits.setRange(3, 6)
-    self.spin_qubits.setValue(3)
-    form.addRow("Number of qubits (3-6):", self.spin_qubits)
+    <i>Note:</i> Bitstrings follow little-endian order (Qubit 0 is rightmost).
+    """
 
-    # Cards/player (1-20)
-    self.spin_cards = QtWidgets.QSpinBox()
-    self.spin_cards.setRange(1, 20)
-    self.spin_cards.setValue(5)
-    form.addRow("Cards per player (1-20):", self.spin_cards)
-
-    # Bitstrings/player (0 = default 2^(n-2))
-    self.spin_bitstrings = QtWidgets.QSpinBox()
-    self.spin_bitstrings.setRange(0, 2**(self.spin_qubits.value()-1))
-    self.spin_bitstrings.setValue(0)
-    form.addRow("Bitstrings per player (0 = default 2^(n-2)):", self.spin_bitstrings)
-    # Enforce max as 2^(n-1)
-    self.spin_qubits.valueChanged.connect(
-            lambda n: self.spin_bitstrings.setMaximum(2**(int(n)-1))
-        )
-
-    # Options
-    self.chk_skip = QtWidgets.QCheckBox("Enable skip button")
-    self.chk_skip.setChecked(False)
-    form.addRow(self.chk_skip)
-
-    self.chk_premature = QtWidgets.QCheckBox("Allow measuring before decks are empty")
-    self.chk_premature.setChecked(False)
-    form.addRow(self.chk_premature)
-
-    # Buttons
-    btns = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
-    btns.accepted.connect(self.accept)
-    btns.rejected.connect(self.reject)
-    form.addRow(btns)
-
-  def values(self):
-    return {
-      "num_qubits": self.spin_qubits.value(),
-      "num_cards": self.spin_cards.value(),
-      "num_bitstrings": self.spin_bitstrings.value(),
-      "show_skip": self.chk_skip.isChecked(),
-      "allow_premature_end": self.chk_premature.isChecked(),
-    }
+    msg = QMessageBox()
+    msg.setWindowTitle("Game Rules")
+    msg.setTextFormat(Qt.TextFormat.RichText)
+    msg.setText(rules)
+    msg.setStandardButtons(QMessageBox.Ok)
+    msg.exec()
 
 
 # Embedded Matplotlib canvases for GUI
 class MplCanvas(FigureCanvas):
   """Small helper to host a Matplotlib figure as a Qt widget"""
   def __init__(self, title: str):
-    self.fig = Figure(figsize=(6, 4), constrained_layout=True)
+    self.fig = Figure(figsize=(6, 4), tight_layout=True)
     super().__init__(self.fig)
     self.ax = self.fig.add_subplot(111)
     self.fig.suptitle(title)
@@ -446,7 +410,70 @@ class DeckView(QtWidgets.QGroupBox):
     self.list.setEnabled(enabled)
 
 
-# Main GUI window
+class GameSetupDialog(QDialog):
+    """Dialog for selecting the number of qubits, cards, and bitstrings per player."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Game Setup")
+
+        layout = QVBoxLayout(self)
+
+        # Number of qubits
+        qubit_layout = QHBoxLayout()
+        qubit_layout.addWidget(QLabel("Number of qubits (3-5):"))
+        self.qubit_spin = QSpinBox()
+        self.qubit_spin.setRange(3, 5)
+        self.qubit_spin.setValue(3)
+        qubit_layout.addWidget(self.qubit_spin)
+        layout.addLayout(qubit_layout)
+
+        # Number of cards
+        cards_layout = QHBoxLayout()
+        cards_layout.addWidget(QLabel("Cards per player (1-20):"))
+        self.cards_spin = QSpinBox()
+        self.cards_spin.setRange(1, 20)
+        self.cards_spin.setValue(5)
+        cards_layout.addWidget(self.cards_spin)
+        layout.addLayout(cards_layout)
+
+        # Number of bitstrings
+        bits_layout = QHBoxLayout()
+        bits_layout.addWidget(QLabel("Bitstrings per player (0 = default):"))
+        self.bits_spin = QSpinBox()
+        self.bits_spin.setRange(0, 2 ** (self.qubit_spin.value() - 1))
+        self.bits_spin.setValue(0)
+        bits_layout.addWidget(self.bits_spin)
+        layout.addLayout(bits_layout)
+        self.qubit_spin.valueChanged.connect(self.update_bitstring_limit)
+
+        self.early_measure_checkbox = QCheckBox("Enable early measurement (before all cards are played)")
+        self.early_measure_checkbox.setChecked(False)
+        layout.addWidget(self.early_measure_checkbox)
+
+        # OK / Cancel
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def update_bitstring_limit(self, new_qubit_value: int):
+        """Update max allowed bitstrings when qubit count changes."""
+        max_bits = 2 ** (new_qubit_value - 1)
+        self.bits_spin.setMaximum(max_bits)
+        # Optionally adjust current value if it's now above the limit
+        if self.bits_spin.value() > max_bits:
+            self.bits_spin.setValue(max_bits)
+
+    def get_values(self):
+        return (
+            self.qubit_spin.value(),
+            self.cards_spin.value(),
+            self.bits_spin.value(),
+            self.early_measure_checkbox.isChecked()
+        )
+
+
 class MainWindow(QtWidgets.QWidget):
   """Class that manages GUI loop and flow"""
 
@@ -455,20 +482,17 @@ class MainWindow(QtWidgets.QWidget):
     self.setWindowTitle("QARDS - GUI")
     self.resize(1300, 820)
 
-    # Game parameters (User-chosen)
-    dlg = SetupDialog(self)
-    if dlg.exec() != QtWidgets.QDialog.Accepted:
-      # User cancelled
-      QtWidgets.QApplication.quit()
-      return
-    opts = dlg.values()
-    num_qubits = opts["num_qubits"]
-    num_cards = opts["num_cards"]
-    num_bitstrings_per_player = opts["num_bitstrings"]  # 0 = default handled by Game
-    self.enable_measure = opts["allow_premature_end"]
-    self.enable_skip = opts["show_skip"]
+    setup_dialog = GameSetupDialog()
+    if setup_dialog.exec() == QDialog.Accepted:
+        num_qubits, num_cards, num_bitstrings, enable_measure = setup_dialog.get_values()
+        if num_bitstrings == 0 or num_bitstrings > int(2 ** (num_qubits - 1)):
+            num_bitstrings = int(2 ** (num_qubits - 2))
+    else:
+        sys.exit(0)
 
-    self.game = Game(num_qubits, num_cards, num_bitstrings_per_player)
+    self.game = Game(num_qubits, num_cards, num_bitstrings)
+    self.enable_measure = enable_measure
+    self.game.show_game_rules()
 
     # Decks + targets
     left = QtWidgets.QVBoxLayout()
@@ -477,9 +501,7 @@ class MainWindow(QtWidgets.QWidget):
     left.addWidget(self.deck_p1)
     left.addWidget(self.deck_p2)
     self.targets_p1 = QtWidgets.QLabel()
-    self.targets_p1.setWordWrap(True)
     self.targets_p2 = QtWidgets.QLabel()
-    self.targets_p2.setWordWrap(True)
     left.addWidget(QtWidgets.QLabel("Player 1 bitstrings:"))
     left.addWidget(self.targets_p1)
     left.addWidget(QtWidgets.QLabel("Player 2 bitstrings:"))
@@ -502,19 +524,14 @@ class MainWindow(QtWidgets.QWidget):
     mid.addWidget(self.simple_selector_box)
 
     # Buttons
-    # Play
     row_btns = QtWidgets.QHBoxLayout()
     self.play_btn = QtWidgets.QPushButton("Play Selected Card")
     row_btns.addWidget(self.play_btn)    
-    
-    # Skip (Only if enabled)
     self.skip_btn = QtWidgets.QPushButton("End Turn (No Move)")
-    if (self.enable_skip):
+    if (enable_skip):
       row_btns.addWidget(self.skip_btn)
-      
-    # Measure (Only if enabled)
     self.measure_btn = QtWidgets.QPushButton("Measure / End Game")
-    if (self.enable_measure):
+    if (enable_measure):
       row_btns.addWidget(self.measure_btn)
     mid.addLayout(row_btns)
     
@@ -866,7 +883,7 @@ class MainWindow(QtWidgets.QWidget):
     self.state_canvas.ax.clear()
     self.state_canvas.fig.canvas.draw_idle()
     counts = self.game.measure_output_end_of_game()
-    plot_counts(counts, ax=self.counts_canvas.ax, fig=self.counts_canvas.fig, normalize=False)
+    plot_counts(counts, ax=self.counts_canvas.ax, fig=self.counts_canvas.fig, normalize=True)
 
     # Score & announce winner
     p1, p2 = self.game.get_target_bitstring_counts(counts)
